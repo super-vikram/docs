@@ -1,0 +1,159 @@
+---
+title: "OMS API — DeFiX Intents"
+description: "4-endpoint DeFiX v0.1 intent protocol for submitting, tracking, and cancelling on-chain vault operations."
+---
+
+🌐 Public · ✅ Live
+
+## About the OMS
+
+The OMS (Order Management System) implements the **DeFiX v0.1** protocol — a standardized intent interface for DeFi vault operations. It receives intents from the Strategy Engine and executes them on-chain.
+
+**Base URL:** `https://oms.superform.xyz`  
+**Auth:** `Authorization: Bearer <jwt>`  
+**OpenAPI spec:** `oms-openapi.json` ✅
+
+<Note>
+The OMS is primarily a **backend-facing** service. In normal operations, the Strategy Engine submits intents to the OMS automatically when strategies trigger. Direct OMS access is relevant for advanced automation scenarios or custom strategy implementations.
+</Note>
+
+## Intent Lifecycle
+
+```
+Submit → Processing → Completed
+                   ↘ Failed
+                   ↘ Cancelled (only while Processing)
+```
+
+Once an intent reaches `Completed` or `Failed`, it is terminal and cannot be modified.
+
+---
+
+## Endpoints
+
+### Submit Intent
+
+```
+POST /defix/intents
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "vault_id": "8453:0xdef...",
+  "action": "DEPOSIT",
+  "action_config": {
+    "size_expr": "1000000000",
+    "execution_name": "MorphoDepositHook",
+    "execution_address": "0xHookContract...",
+    "target_address": "0xMorphoVault...",
+    "from_address": "0xVaultContract...",
+    "max_slippage_bps": 50,
+    "execution_params": {}
+  },
+  "auth_signing": {
+    "proof": "0xmerkleproof...",
+    "root": "0xmerkleroot..."
+  }
+}
+```
+
+Returns:
+```json
+{
+  "id": "intent-uuid",
+  "status": "Processing",
+  "created_at": "2025-03-01T10:00:00Z"
+}
+```
+
+### Get Intent
+
+```
+GET /defix/intents/{intent_id}
+Authorization: Bearer <jwt>
+```
+
+```json
+{
+  "id": "intent-uuid",
+  "vault_id": "8453:0xdef...",
+  "action": "DEPOSIT",
+  "status": "Completed",
+  "created_at": "2025-03-01T10:00:00Z",
+  "completed_at": "2025-03-01T10:01:32Z",
+  "tx_hash": "0xabc...",
+  "gas_used": 180000,
+  "error": null
+}
+```
+
+### Cancel Intent
+
+```
+POST /defix/intents/{intent_id}/cancel
+Authorization: Bearer <jwt>
+```
+
+Only intents in `Processing` state can be cancelled. Returns `409 Conflict` if the intent is already in a terminal state (`Completed` or `Failed`).
+
+### Get Intent Events
+
+```
+GET /defix/intents/{intent_id}/events
+Authorization: Bearer <jwt>
+```
+
+Returns the event log for an intent — state transitions, execution attempts, errors:
+
+```json
+{
+  "events": [
+    {
+      "timestamp": "2025-03-01T10:00:00Z",
+      "event_type": "submitted",
+      "details": {}
+    },
+    {
+      "timestamp": "2025-03-01T10:01:00Z",
+      "event_type": "processing",
+      "details": { "attempt": 1 }
+    },
+    {
+      "timestamp": "2025-03-01T10:01:32Z",
+      "event_type": "completed",
+      "details": { "tx_hash": "0xabc...", "gas_used": 180000 }
+    }
+  ]
+}
+```
+
+---
+
+## Intent Status Values
+
+| Status | Description |
+|--------|-------------|
+| `Processing` | Queued or being executed |
+| `Completed` | Successfully executed on-chain |
+| `Failed` | Execution failed (see error in intent detail) |
+| `Cancelled` | Cancelled before execution |
+
+---
+
+## DeFiX v0.1 Protocol Notes
+
+- Intents are **idempotent** — submitting the same intent twice returns the existing intent (based on vault + action + config hash)
+- The OMS handles nonce management, gas estimation, and transaction broadcasting
+- Failed intents include an error message and may be retried by the Strategy Engine depending on error type
+- The OMS validates the merkle proof in `auth_signing` before broadcasting the transaction
+
+---
+
+## Summary
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/defix/intents` | POST | Submit DeFiX intent |
+| `/defix/intents/{id}` | GET | Get intent state |
+| `/defix/intents/{id}/cancel` | POST | Cancel pending intent |
+| `/defix/intents/{id}/events` | GET | Intent event log |
