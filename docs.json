@@ -87,7 +87,7 @@
       "anchors": [
         {
           "anchor": "API Reference",
-          "href": "api/overview",
+          "href": "https://superman.mintlify.app/api/overview",
           "icon": "code"
         },
         {
