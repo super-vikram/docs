@@ -1,0 +1,78 @@
+---
+title: "Home: Vault Overview"
+description: "The public landing page showing all SuperVault deployments with TVL, APY, and chain filters."
+---
+
+🌐 Public · ✅ Live
+
+## Overview
+
+The Home page is the public entry point for SuperVaults. No authentication is required. It displays a grid of all deployed SuperVaults across all supported chains, with real-time TVL and APY data.
+
+<Info>
+The Home page renders data from `GET /api/v1/public/vaults` (Erebor, no auth). Token metadata is fetched separately via `GET /api/v1/registry/token-assets?chain_id={}&addresses={}` and cached for the session.
+</Info>
+
+## Vault Grid
+
+Each vault card displays:
+- **Vault Name** — curator-defined name
+- **Underlying Asset** — the token depositors supply (USDC, ETH, etc.)
+- **TVL (USD)** — total value locked, denominated in USD
+- **APY** — current annualized yield percentage
+- **Chain** — Ethereum or Base indicator
+
+### Filtering and Sorting
+
+| Control | Options |
+|---------|---------|
+| Chain filter | All, Ethereum (1), Base (8453) |
+| Search | Text search by vault name |
+| Sort | TVL (default), APY, Name |
+
+## Depositing and Withdrawing
+
+Each vault card includes **Deposit** and **Withdraw** buttons. Clicking either:
+1. Triggers Dynamic.xyz wallet connect if not already connected
+2. Opens an inline interaction modal for the selected vault
+
+<Note>
+Deposit/Withdraw flows are part of the depositor UX, not the curator UX. As a curator, you can observe depositor activity through the Dashboard's Operations and Users sections.
+</Note>
+
+## Navigation
+
+Clicking a vault card navigates to the **Dashboard** for that vault at `/dashboard?chainId={id}&vaultAddress={addr}`.
+
+## API Reference
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/public/vaults` | GET | None | All vault deployments with TVL/APY |
+| `/api/v1/registry/token-assets` | GET | None | Token metadata (symbol, decimals, logo) |
+
+### Response shape
+
+```json
+// GET /api/v1/public/vaults
+[
+  {
+    "vault_address": "0x...",
+    "escrow_address": "0x...",
+    "chain_id": 8453,
+    "name": "USDC Yield Vault",
+    "symbol": "svUSDC",
+    "vault_share_decimals": 18,
+    "underlying_asset_symbol": "USDC",
+    "underlying_asset_decimals": 6,
+    "underlying_asset_address": "0x...",
+    "tvl_usd": 1250000.00,
+    "apy": 0.0847
+  }
+]
+```
+
+## Data Freshness
+
+- Vault list: 5-minute stale time, no window-focus refetch
+- Token assets: infinite stale time (cached for session)
