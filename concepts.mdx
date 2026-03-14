@@ -1,0 +1,202 @@
+---
+title: "Key Concepts"
+description: "Core terminology and mechanics every SuperVaults curator must understand."
+---
+
+🌐 Public · ✅ Live
+
+## ERC Standards
+
+### ERC-4626 — Tokenized Vaults
+
+The base vault standard. Every SuperVault is ERC-4626 compliant:
+- Deposits mint **vault shares** to the depositor
+- Withdrawals burn shares, returning underlying assets at the current price-per-share (PPS)
+- The share-to-asset conversion (`convertToAssets`, `previewRedeem`) is deterministic given a PPS
+
+### ERC-7540 — Async Deposit/Withdraw
+
+An extension of ERC-4626 for asynchronous flows, co-authored by Vik Arun and 0xTimePunk. SuperVaults uses ERC-7540 to support cross-chain operations:
+- Depositors submit **request objects** instead of immediately minting shares
+- A keeper (Superman's `fulfill_deposits` / `fulfill_redeems` workers) processes the request and completes the transfer
+- Requests are tracked via an on-chain escrow contract until fulfilled
+
+---
+
+## Price Per Share (PPS)
+
+PPS is the value of one vault share denominated in the vault's underlying asset.
+
+| Variant | Description |
+|---------|-------------|
+| **Current PPS** | Last recorded on-chain PPS (may be stale) |
+| **Calculated PPS** | Off-chain computed PPS based on current allocations |
+| **HWM PPS** | High-water mark — the all-time highest PPS. Performance fees only accrue above HWM. |
+
+### Staleness
+
+PPS has a configurable freshness window. Each oracle reports:
+- `last_pps_update_timestamp` — when PPS was last updated on-chain
+- `remaining_staleness_time` — seconds until the current PPS expires
+- `min_update_interval` / `max_staleness` — bounds set in SuperGovernor config
+
+When PPS becomes stale, certain vault operations (deposits, redemptions) may be blocked until the oracle is refreshed.
+
+---
+
+## Yield Sources
+
+A yield source is any external protocol where vault funds can be deployed to earn yield.
+
+| Type | Example |
+|------|---------|
+| `erc4626` | Morpho vaults, Aave aTokens wrapped as ERC-4626 |
+| `pendle_pt` | Pendle Principal Token (fixed-yield) |
+
+Each yield source requires a **paired oracle** that tells the vault how to price the yield source's share/token back into the underlying asset.
+
+### Oracle Types
+
+| Oracle Type | Used For |
+|-------------|---------|
+| `erc4626` | Standard ERC-4626 yield sources |
+| `pendle_pt` | Pendle PT at spot price |
+| `pendle_pt_amortized` | Pendle PT amortized toward maturity |
+
+---
+
+## Ladders
+
+A ladder is a prioritized, ordered list that controls how keeper workers allocate or deallocate vault assets.
+
+### Five Ladder Types
+
+| Ladder | Controls |
+|--------|---------|
+| **Deposit Priority** | Which yield sources receive free assets first (in order) |
+| **Redemption Priority** | Which yield sources are unwound first to fulfill redemptions |
+| **Reserve** | Percentage of assets held in the vault (not deployed) |
+| **Claim Rewards** | Floor thresholds per reward token; triggers claim when balance exceeds threshold |
+| **Swap** | Floor thresholds per non-underlying token; triggers swap to underlying when exceeded |
+
+Ladders are stored in the **Superman Python** backend and evaluated by keeper workers on each execution cycle.
+
+<Tip>
+Set a non-zero reserve (e.g., 5–10%) to ensure instant redemptions don't always require unwinding yield sources.
+</Tip>
+
+---
+
+## Hook System
+
+Hooks are on-chain modules that the vault's keeper can invoke during deposit, withdrawal, and rebalance operations. Each hook is registered in the **Hook Registry** (in Erebor) with:
+- A hook type (`DEPOSIT`, `WITHDRAWAL`, `REBALANCE`)
+- Per-chain addresses
+- `inspectParams` — the typed parameters each hook invocation requires (yield source address, token, oracle, etc.)
+
+Hooks are authorized via the **Merkle Tree** — only hooks included in the current active merkle root can be invoked by keepers.
+
+---
+
+## Merkle Trees
+
+The merkle tree is the on-chain authorization mechanism for keeper hook invocations.
+
+### Workflow
+
+```
+1. Create Hook Config     → select hooks + assign params for each leaf
+2. Activate Config        → mark config version as active
+3. Generate Merkle Tree   → async job builds tree, returns root hash + leaf proofs
+4. Sync to Chain          → propose new root → timelock expires → execute root update
+```
+
+**Each leaf** in the tree encodes a unique (hook, params) tuple. A keeper can only execute a hook invocation if it can provide a valid merkle proof matching the current on-chain root.
+
+### Sync States
+
+| State | Meaning |
+|-------|---------|
+| `in_sync` | On-chain root matches the generated tree |
+| `needs_generation` | No tree exists for active config — run generation first |
+| `pending_timelock` | Root proposed, waiting for timelock to expire |
+| `propose` | Tree ready, propose root to chain |
+| `execute` | Timelock expired, execute root update |
+
+---
+
+## Strategy Engine
+
+The Strategy Engine automates vault operations by evaluating curator-defined rules and dispatching **DeFiX intents**.
+
+### Strategy State Machine
+
+```
+CREATED → IDLE ↔ RUNNING
+                    ↓ (kill switch)
+                  PAUSED
+```
+
+| State | Description |
+|-------|-------------|
+| `CREATED` | Strategy exists but has never run |
+| `IDLE` | Ready to run, not currently ticking |
+| `RUNNING` | Actively evaluating rules each tick |
+| `PAUSED` | Halted by vault kill switch |
+| `ERROR` | Runtime error; manual intervention needed |
+
+### Rule Types
+
+| Type | Description |
+|------|-------------|
+| `EXPR` | Numeric expression comparing indicator values |
+| `AND` / `OR` | Logical combinators |
+| `NOT` | Logical negation |
+| `VOTE` | Conviction threshold — N-of-M sub-rules must pass |
+
+### Indicators
+
+Indicators are variables the strategy engine monitors (e.g., APY of a yield source, TVL delta, PPS staleness percentage). Rules reference indicator values by name.
+
+---
+
+## DeFiX Intents
+
+**DeFiX v0.1** is the intent protocol implemented by the OMS. When a strategy's rules trigger, the Strategy Engine creates an intent and submits it to the OMS.
+
+### Intent Lifecycle
+
+```
+Submit → Processing → Completed
+                   → Failed
+                   → Cancelled
+```
+
+An intent has an **action** (`DEPOSIT`, `WITHDRAWAL`, `REBALANCE`) and an **action config** specifying size expression, target yield source, slippage tolerance, and execution parameters.
+
+---
+
+## The Prepare Pattern
+
+Most on-chain operations in SuperVaults use a two-phase flow:
+
+1. **Prepare** — Call Erebor API (e.g., `POST /api/v1/vaults/emergency-pause/prepare`). Returns raw EVM calldata (`{ to, data, value }`).
+2. **Sign** — Curator's wallet signs and broadcasts the transaction.
+3. **Confirm** (where applicable) — Notify Erebor of the tx hash to trigger backend indexing.
+
+This pattern keeps the backend stateless for transaction construction while ensuring the curator's wallet maintains custody.
+
+---
+
+## Vault-Enabled vs On-Chain Pause
+
+These are two separate controls:
+
+| Control | Location | What it stops |
+|---------|----------|---------------|
+| **Vault Enabled toggle** | Superman Python | Keeper workers (deposit, redeem, claims, swaps) |
+| **On-Chain Pause** | SuperVault contract (via Erebor) | Strategy execution + all on-chain operations |
+
+<Warning>
+On-chain pause requires a wallet signature and affects all vault operations. Use keeper service pauses for targeted operational control without the gas cost of an on-chain tx.
+</Warning>
