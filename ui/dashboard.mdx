@@ -1,79 +1,66 @@
 ---
-title: "Dashboard: Vault Health"
+title: "Dashboard"
 description: "9-section vault monitoring dashboard covering TVL, PPS, fees, risk, users, operations, and the Zap Terminal."
 ---
 
-👤 Manager Required · ✅ Live
-
 ![SuperVaults Dashboard — vault health overview with PPS, allocation, fees, and operations](/images/screenshots/dashboard.jpg)
 
-## Overview
+The Dashboard is the primary monitoring view for a single vault. Nine sidebar sections cover every dimension of vault health: financial state, allocation composition, pricing, fee accrual, access control, performance history, risk metrics, depositor analytics, and operational throughput.
 
-The Dashboard is the central monitoring view for a single vault. It is organized into 9 sections accessible via the left sidebar. Vault financial data refreshes every 15 seconds.
+Select your chain and vault from the top dropdowns. Financial data refreshes every 15 seconds from `GET /api/v1/vaults/{chain_id}/{vault_address}` plus 16 Erebor analytics sub-endpoints.
 
-<Info>
-Select your chain and vault from the dropdowns at the top. The Dashboard loads full vault state from `GET /api/v1/vaults/{chain_id}/{vault_address}` plus 16 analytics sub-endpoints from Erebor.
-</Info>
-
-## Sidebar Sections
-
-### 1. Overview
+## 1. Overview
 
 Top-level vault health metrics:
 
-| Metric | Source | Notes |
-|--------|--------|-------|
-| TVL (USD) | `analytics/overview` | Current total value locked |
-| Current PPS | `vaults/{chain_id}/{address}` | Last on-chain recorded PPS |
-| Calculated PPS | Same | Off-chain computed PPS |
-| HWM PPS | Same | All-time high — performance fees accrue above this |
-| Total Supply | Same | Outstanding vault shares |
-| Free Assets | Same | Assets in vault not deployed to yield sources |
-| Escrowed Assets | Same | Assets pending cross-chain redemptions |
-| Pause Status | Same | Whether vault strategy is paused |
-| $UP Upkeep | Same | Upkeep token balance and payment status |
-| Staleness Countdown | Derived | Time until PPS expires; client-calculated from `last_pps_update_timestamp` |
+| Metric | Description |
+|--------|-------------|
+| TVL (USD) | Current total value locked |
+| Current PPS | Last on-chain recorded price-per-share |
+| Calculated PPS | Off-chain computed PPS (may differ during update intervals) |
+| HWM PPS | All-time high-water mark. Performance fees accrue only above this level. |
+| Total Supply | Outstanding vault shares |
+| Free Assets | Assets in vault not deployed to yield sources |
+| Escrowed Assets | Assets pending cross-chain redemptions |
+| Pause Status | Whether vault strategy execution is paused |
+| $UP Upkeep | Upkeep token balance and payment status |
+| Staleness Countdown | Time until PPS expires. Client-calculated from `last_pps_update_timestamp`. |
 
-### 2. Allocation
+## 2. Allocation
 
-A pie chart showing the current distribution of vault assets across yield sources. Each slice represents one whitelisted yield source with its current allocation amount and percentage.
+Pie chart showing current distribution of vault assets across yield sources. Each slice represents one whitelisted yield source with its allocation amount and percentage of total.
 
-### 3. PPS & Pricing
+## 3. PPS & Pricing
 
-- PPS history chart (time series from `analytics/pps`)
-- Current, calculated, and HWM PPS values
-- Staleness countdown with visual indicator
-- Min/max update intervals from SuperGovernor config
+PPS history chart (time series from `analytics/pps`). Current, calculated, and HWM values displayed alongside staleness countdown with visual indicator. Min/max update intervals from SuperGovernor config.
 
-### 4. Fees & Upkeep
+## 4. Fees & Upkeep
 
-- Management fee configuration (bps, annualized)
-- Performance fee configuration (bps above HWM)
-- Pending performance fee: total fee, Superform share, recipient share, profit since HWM
-- **Can Skim** flag — whether pending fees are claimable now
-- Fee history table (paginated, last 200 events) from `analytics/fees`
+| Field | Description |
+|-------|-------------|
+| Management Fee | Annualized bps on TVL |
+| Performance Fee | Bps on yield above HWM |
+| Pending Performance Fee | Total accrued, Superform share, recipient share, profit since HWM |
+| Can Skim | Whether pending fees are claimable now |
 
-### 5. Managers
+Fee history table: paginated (last 200 events) from `analytics/fees?limit=200`.
 
-Lists all wallet addresses with roles on this vault:
-- Primary manager address
-- Secondary manager addresses
-- View-only addresses
+## 5. Managers
 
-### 6. Performance
+Lists all wallet addresses with roles on this vault: primary manager, secondary managers, view-only users.
+
+## 6. Performance
 
 - APY overview: current, 7-day, 30-day from `analytics/overview`
-- APY time series chart (selectable periods)
-- TVL time series chart (selectable periods)
+- APY time series chart with selectable periods
+- TVL time series chart with selectable periods
 - 24h and 7d TVL change
 
-### 7. Risk
-
-Risk metrics from `analytics/risk`:
+## 7. Risk
 
 | Metric | Description |
 |--------|-------------|
-| Risk Score | Composite 0–100 score |
+| Risk Score | Composite 0-100 score |
 | Risk Level | Low / Medium / High classification |
 | Concentration Score | Exposure to any single yield source |
 | Max Drawdown (30d) | Worst peak-to-trough PPS decline |
@@ -81,40 +68,23 @@ Risk metrics from `analytics/risk`:
 | Volatility (Daily) | Daily PPS standard deviation |
 | Top Holder % | Share of TVL held by the largest depositor |
 
-Risk data has a 2-minute stale time (less volatile than financial data).
+Risk data has a 2-minute stale time.
 
-### 8. Users
+## 8. Users
 
-From `analytics/users`:
-- Total users, active users (24h/7d/30d), new users (24h/7d/30d), churned users
-- Retention rate (7d/30d)
-- Average deposit size
-- Retention cohort table from `analytics/users/retention`
-- Top holders table from `analytics/users/top`
+From `analytics/users`: total users, active users (24h/7d/30d), new users (24h/7d/30d), churned users, retention rate (7d/30d), average deposit size. Includes retention cohort table and top holders table.
 
-### 9. Operations
+## 9. Operations
 
-From `analytics/operations`:
-- Transaction count, deposit count, withdrawal count
-- Average and total gas cost
-- Average and max slippage
-- Net flow (deposits minus withdrawals)
-- Deposit/withdraw volume chart from `analytics/operations/volume`
-- Transaction history table from `analytics/operations/transactions`
+From `analytics/operations`: transaction count, deposit and withdrawal counts, gas costs (average and total), slippage (average and max), net flow. Deposit/withdraw volume chart and transaction history table.
 
 ## Zap Terminal
 
+The Zap Terminal opens as a modal overlay providing AI-powered vault analysis: a narrative covering performance, risk, yield sources, fees, and liquidity. Also includes a curated social feed and WebSocket-based AI chat for vault Q&A.
+
 <Note>
-The Zap Terminal is an advanced, AI-powered vault analysis tool. It is live but under active development — features and UX may change.
+The Zap Terminal analysis endpoint (`GET /api/v1/vaults/{vaultAddress}/ai/analysis?chain_id={}`) is operational but not yet included in the Erebor OpenAPI spec.
 </Note>
-
-The Zap Terminal opens as a modal overlay from the Dashboard. It provides:
-
-1. **Vault Analysis** — AI-generated narrative covering performance, risk, yield sources, fees, and liquidity
-2. **Social Feed** — Curated Twitter/social accounts related to the vault's protocols
-3. **AI Chat** — WebSocket-based chat where you can ask questions about the vault
-
-The analysis endpoint (`/api/v1/vaults/{vaultAddress}/ai/analysis?chain_id={}`) is not currently included in the Erebor OpenAPI spec but is operational.
 
 ## API Endpoints
 

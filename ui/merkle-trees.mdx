@@ -3,103 +3,89 @@ title: "Merkle Trees"
 description: "Manage hook configurations and on-chain merkle root authorization for vault keeper operations."
 ---
 
-👤 Manager Required · ✅ Live
-
 ![SuperVaults Merkle Trees — hook configuration and on-chain merkle root management](/images/screenshots/merkle-trees.jpg)
 
-## Overview
+The Merkle Trees page is the authorization control center for keeper operations. Every on-chain action a keeper can perform must be encoded as a leaf in the vault's merkle tree and verified against the on-chain root before execution.
 
-The Merkle Trees page is the authorization control center for keeper operations. Before keepers can interact with yield sources, you must:
-
-1. Create a **Hook Config** (define which hooks are authorized with which parameters)
-2. **Generate** a merkle tree from the active config
-3. **Sync** the tree root to chain (propose → wait for timelock → execute)
-
-<Info>
-All merkle endpoints are served by **Erebor**. The merkle root is stored on-chain in the `SuperVaultStrategy` contract.
-</Info>
+The workflow: create a hook config defining authorized operations, generate a merkle tree from that config, then sync the tree root on-chain through a timelocked proposal-execute cycle.
 
 ## Tab 1: Hook Configs
 
 ### Version History
 
-Each vault has a history of hook configuration versions. The active version is highlighted. Previous versions are read-only.
+Each vault maintains a history of hook configuration versions. The active version is highlighted. Previous versions are read-only for audit purposes.
 
-### Creating a New Config
+### Creating a Config
 
-Click **Create New Config**. For each hook you want to authorize:
+Click **Create New Config**. For each hook to authorize:
 
-1. **Select Hook** — choose from the global Hook Registry (fetched from `GET /api/v1/registry/hooks`)
-2. **Set Parameters** — for each `inspectParam` defined by the hook, provide the value:
-   - `yield_source` ref type → yield source address
-   - `token` ref type → ERC-20 token address
-   - `oracle` ref type → oracle address
+1. **Select Hook** — from the global Hook Registry (`GET /api/v1/registry/hooks`)
+2. **Set Parameters** — for each `inspectParam` defined by the hook:
+   - `yield_source` ref → yield source address
+   - `token` ref → ERC-20 token address
+   - `oracle` ref → oracle address
    - `others` → freeform hex value
 
-Each row in your config becomes one **leaf** in the merkle tree. A keeper can only call a hook with the exact parameter combination matching a leaf.
+Each row becomes one **leaf** in the merkle tree. A keeper can only call a hook with the exact parameter combination matching a leaf.
 
 ### Activating a Config
 
-Click **Activate** on a config version. Only one version can be active at a time. The active config is used for the next merkle tree generation.
+Click **Activate** on a config version. Only one version is active at a time. The active config is used for the next tree generation.
 
 ## Tab 2: Merkle Trees
 
-Shows generated merkle trees for the vault:
+Generated trees for the vault, showing:
 
-- **Root Hash** — the 32-byte merkle root
-- **Leaf Count** — number of authorized (hook, params) combinations
-- **Config Hash** — hash of the source config version
-- **Is Current** — whether this tree's root is currently on-chain
+| Field | Description |
+|-------|-------------|
+| Root Hash | 32-byte merkle root |
+| Leaf Count | Number of authorized (hook, params) combinations |
+| Config Hash | Hash of the source config version |
+| Is Current | Whether this root is active on-chain |
 
-Click a tree to view individual leaf details:
-- Hook name and address
-- Encoded argument values
-- Leaf hash and index
-- Merkle proof path
+Click a tree to view individual leaves: hook name and address, encoded argument values, leaf hash, index, and merkle proof path.
 
 ## Generating a Tree
 
-Click **Generate Merkle Tree**. This starts an async job in Erebor:
+Click **Generate Merkle Tree**. Erebor starts an async job:
 
-- Status polling uses exponential backoff: 2s → 4s → 8s → 15s
-- On `409 Conflict` = a generation job is already in progress; wait for it to finish
+- Polling uses exponential backoff: 2s → 4s → 8s → 15s
+- `409 Conflict` = generation already in progress
 - Job status: `pending` → `running` → `completed` / `failed`
 
 ```bash
-# Start generation
 POST /api/v1/merkle/generate
 { "vault_address": "0x...", "chain_id": 8453 }
 
-# Poll job status
 GET /api/v1/merkle/jobs/{job_id}
 ```
 
 ## Syncing to Chain
 
-After generation, click **Sync to Chain**. Erebor evaluates the on-chain state and returns the required action:
+After generation, click **Sync to Chain**. Erebor evaluates on-chain state and returns the required action:
 
 | Sync Action | Description |
 |-------------|-------------|
-| `in_sync` | On-chain root already matches — no action needed |
-| `needs_generation` | No tree exists for the active config |
-| `propose` | Tree ready; sign and submit root proposal transaction |
-| `pending_timelock` | Root proposed; waiting for timelock to expire. Shows `effectiveTime`. |
-| `execute` | Timelock expired; sign and execute root update transaction |
+| `in_sync` | On-chain root matches. No action needed. |
+| `needs_generation` | No tree exists for the active config. |
+| `propose` | Tree ready. Sign and submit root proposal (starts timelock). |
+| `pending_timelock` | Root proposed. Waiting for timelock expiry. Shows `effectiveTime`. |
+| `execute` | Timelock expired. Sign to activate the new root on-chain. |
 
 ```bash
 GET /api/v1/merkle/sync?vault_address={addr}&chain_id={id}
-# Returns 204 when already in sync
+# Returns 204 No Content when already in sync
 ```
 
 <Note>
-Sync returns `204 No Content` when the root is already in sync. The app handles this gracefully as a success state — no action required.
+Keepers cannot execute against yield sources until the merkle root is synced on-chain. A pending timelock means your authorization changes are queued but not yet active.
 </Note>
 
 ## Merkle Proofs
 
-Proofs are available for each leaf in the tree. Use `GET /api/v1/merkle/proofs?vault_address={}&chain_id={}` to fetch all proofs for programmatic validation.
+Proofs for each leaf are available via `GET /api/v1/merkle/proofs?vault_address={}&chain_id={}`. Use these for programmatic validation or custom keeper implementations.
 
-## All Merkle API Endpoints
+## All Merkle Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -113,4 +99,4 @@ Proofs are available for each leaf in the tree. Use `GET /api/v1/merkle/proofs?v
 | `/api/v1/merkle/generate` | POST | Start generation job |
 | `/api/v1/merkle/jobs/{id}` | GET | Poll job status |
 | `/api/v1/merkle/jobs` | GET | Recent jobs list |
-| `/api/v1/merkle/sync` | GET | Sync status / required action |
+| `/api/v1/merkle/sync` | GET | Sync status and required action |

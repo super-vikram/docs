@@ -3,48 +3,35 @@ title: "Home: Vault Overview"
 description: "The public landing page showing all SuperVault deployments with TVL, APY, and chain filters."
 ---
 
-🌐 Public · ✅ Live
-
 ![SuperVaults Home — vault grid with TVL, APY, and chain filters](/images/screenshots/home.jpg)
 
-## Overview
-
-The Home page is the public entry point for SuperVaults. No authentication is required. It displays a grid of all deployed SuperVaults across all supported chains, with real-time TVL and APY data.
-
-<Info>
-The Home page renders data from `GET /api/v1/public/vaults` (Erebor, no auth). Token metadata is fetched separately via `GET /api/v1/registry/token-assets?chain_id={}&addresses={}` and cached for the session.
-</Info>
+The Home page lists every deployed SuperVault across all supported chains. No authentication required. Data refreshes from `GET /api/v1/public/vaults` (Erebor) with a 5-minute stale time.
 
 ## Vault Grid
 
 Each vault card displays:
-- **Vault Name** — curator-defined name
-- **Underlying Asset** — the token depositors supply (USDC, ETH, etc.)
-- **TVL (USD)** — total value locked, denominated in USD
-- **APY** — current annualized yield percentage
-- **Chain** — Ethereum or Base indicator
+
+| Field | Description |
+|-------|-------------|
+| Vault Name | Curator-defined name |
+| Underlying Asset | Token depositors supply (USDC, WETH, etc.) |
+| TVL (USD) | Total value locked |
+| APY | Current annualized yield |
+| Chain | Ethereum or Base |
 
 ### Filtering and Sorting
 
 | Control | Options |
 |---------|---------|
 | Chain filter | All, Ethereum (1), Base (8453) |
-| Search | Text search by vault name |
+| Search | Text match by vault name |
 | Sort | TVL (default), APY, Name |
 
-## Depositing and Withdrawing
+## Depositor Actions
 
-Each vault card includes **Deposit** and **Withdraw** buttons. Clicking either:
-1. Triggers Dynamic.xyz wallet connect if not already connected
-2. Opens an inline interaction modal for the selected vault
+Each card includes **Deposit** and **Withdraw** buttons. These trigger the depositor UX (Dynamic.xyz wallet connect if needed, then inline interaction modal). Depositor activity is observable through the Dashboard's Operations and Users sections.
 
-<Note>
-Deposit/Withdraw flows are part of the depositor UX, not the curator UX. As a curator, you can observe depositor activity through the Dashboard's Operations and Users sections.
-</Note>
-
-## Navigation
-
-Clicking a vault card navigates to the **Dashboard** for that vault at `/dashboard?chainId={id}&vaultAddress={addr}`.
+Clicking a vault card navigates to its [Dashboard](/ui/dashboard) at `/dashboard?chainId={id}&vaultAddress={addr}`.
 
 ## API Reference
 
@@ -53,10 +40,8 @@ Clicking a vault card navigates to the **Dashboard** for that vault at `/dashboa
 | `/api/v1/public/vaults` | GET | None | All vault deployments with TVL/APY |
 | `/api/v1/registry/token-assets` | GET | None | Token metadata (symbol, decimals, logo) |
 
-### Response shape
-
 ```json
-// GET /api/v1/public/vaults
+// GET /api/v1/public/vaults — response shape
 [
   {
     "vault_address": "0x...",
@@ -74,7 +59,4 @@ Clicking a vault card navigates to the **Dashboard** for that vault at `/dashboa
 ]
 ```
 
-## Data Freshness
-
-- Vault list: 5-minute stale time, no window-focus refetch
-- Token assets: infinite stale time (cached for session)
+Token metadata is fetched separately via `GET /api/v1/registry/token-assets?chain_id={}&addresses={}` and cached for the session (infinite stale time).

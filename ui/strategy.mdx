@@ -3,130 +3,104 @@ title: "Strategy Canvas"
 description: "Create and manage automated rebalancing strategies with a visual rule-based canvas."
 ---
 
-👤 Manager Required · ✅ Live
-
 ![SuperVaults Strategy Canvas — visual rule-based strategy builder with vault asset pool and rebalance strategy nodes](/images/screenshots/strategy.jpg)
 
-## Overview
+The Strategy Canvas is where curators build rule-based automation for vault operations. Strategies evaluate indicator values on configurable tick intervals and dispatch DeFiX intents to the OMS when conditions are met.
 
-The Strategy Canvas lets curators define rule-based automation for vault operations. Strategies evaluate indicator values on a configurable tick interval and dispatch DeFiX intents when their rules trigger.
-
-<Info>
-The Strategy page is at `/strategy/{chainId}/{vaultAddress}`. Select a vault from the dropdown to navigate to its strategy canvas.
-</Info>
+Navigate to `/strategy/{chainId}/{vaultAddress}` or select a vault from the dropdown.
 
 ## Canvas Layout
 
-The canvas partitions strategies into three columns by action type:
+Strategies are partitioned into three columns by action type:
 
 | Column | Action | Description |
 |--------|--------|-------------|
-| **Inflow (Deposit)** | `DEPOSIT` | Strategies that deploy capital into yield sources |
-| **Outflow (Redemption)** | `WITHDRAWAL` | Strategies that unwind positions to fulfill redemptions |
-| **Rebalance** | `REBALANCE` | Strategies that redistribute capital between yield sources |
+| **Inflow** | `DEPOSIT` | Deploy capital into yield sources |
+| **Outflow** | `WITHDRAWAL` | Unwind positions to fulfill redemptions |
+| **Rebalance** | `REBALANCE` | Redistribute capital between yield sources |
 
-Each strategy appears as a card showing its name, state, tick interval, and last intent result.
+Each strategy card displays its name, state, tick interval, and last intent result.
 
-## Strategy State Machine
+## Strategy States
 
-```
-CREATED → IDLE ↔ RUNNING
-                    ↓ (kill switch)
-                  PAUSED
-```
-
-| State | Meaning |
-|-------|---------|
-| `CREATED` | Strategy defined but never activated |
-| `IDLE` | Ready, not currently ticking |
+| State | Description |
+|-------|-------------|
+| `CREATED` | Defined but never activated |
+| `IDLE` | Ready, not ticking |
 | `RUNNING` | Actively evaluating rules each tick |
 | `PAUSED` | Halted by vault kill switch |
-| `ERROR` | Runtime error; hover for details |
+| `ERROR` | Runtime error (hover for details) |
 | `ARCHIVED` | Soft-deleted |
 
-Toggle a strategy between `IDLE` and `RUNNING` using the state toggle on each card.
+Toggle between `IDLE` and `RUNNING` using the state control on each card.
 
-## Master Kill Switch
+## Kill Switch
 
-The vault-level kill switch (top of the canvas) pauses **all** strategies for the vault simultaneously. Use this for emergency stops without requiring individual strategy toggles.
+The vault-level kill switch (top of canvas) pauses all strategies simultaneously. When engaged, all `RUNNING` strategies transition to `PAUSED`. Use this for emergency stops without toggling individual strategies.
 
-The kill switch state is stored in the Strategy Engine (`PATCH /api/v1/vaults/{vault_id}`). When engaged, all running strategies transition to `PAUSED`.
+API: `PATCH /api/v1/vaults/{vault_id}` with `{ "kill_switch": true }`
 
 ## Creating a Strategy
 
-Click **New Strategy** to open the creation form:
+Click **New Strategy** to open the creation form.
 
-### Required Fields
+### Core Fields
 
 | Field | Description |
 |-------|-------------|
-| **Name** | Human-readable name |
+| **Name** | Human-readable identifier |
 | **Action** | `DEPOSIT`, `WITHDRAWAL`, or `REBALANCE` |
-| **Tick Interval** | How often the strategy evaluates (milliseconds) |
+| **Tick Interval** | Evaluation frequency in milliseconds |
 | **Cooldown** | Minimum time between intent dispatches (milliseconds) |
-| **Priority** | Execution order (lower = higher priority) |
+| **Priority** | Execution order within column (lower = higher priority) |
 
 ### Indicators
 
-Indicators are named variables that the rule tree can reference. Define each indicator with:
-- A name (e.g., `usdc_morpho_apy`)
-- A data source expression (evaluated by the engine each tick)
-
-Live indicator values are visible by hovering over a running strategy — the engine's **shard state** shows current variable values.
+Named variables evaluated each tick. Define with a name (e.g., `usdc_morpho_apy`) and a data source expression. Live values are visible by hovering over a running strategy's shard state.
 
 ### Rule Tree
 
-Rules determine when the strategy fires. Build a tree using:
+Boolean logic tree that determines when the strategy dispatches an intent:
 
 | Node Type | Description |
 |-----------|-------------|
-| `EXPR` | `indicator_name comparison_op value` (e.g., `apy > 0.05`) |
-| `AND` | All child rules must be true |
-| `OR` | At least one child rule must be true |
+| `EXPR` | `indicator op value` (e.g., `apy > 0.05`) |
+| `AND` | All children must be true |
+| `OR` | At least one child must be true |
 | `NOT` | Negates a child rule |
-| `VOTE` | N-of-M child rules must be true (conviction threshold) |
+| `VOTE` | N-of-M children must be true |
 
 ### Action Config
 
 | Field | Description |
 |-------|-------------|
-| `size_expr` | Expression defining position size (e.g., `free_assets * 0.5`) |
-| `objective` | Optimization goal (e.g., maximize APY) |
+| `size_expr` | Position size expression (e.g., `free_assets * 0.5`) |
+| `objective` | Optimization goal |
 | `execution_name` | Target hook name |
 | `target_address` | Yield source address |
-| `max_slippage_bps` | Maximum acceptable slippage |
+| `max_slippage_bps` | Maximum acceptable slippage in basis points |
 
 ### Conviction Config
 
-Controls how confident the strategy must be before dispatching an intent. Prevents excessive churn on noisy signals.
+Controls how many consecutive passing ticks are required before dispatching an intent. Prevents excessive churn on noisy signals.
 
 ## Viewing Intents
 
-Each strategy card has an **Intents** tab showing the execution history:
-- Intent ID, action, status (Processing/Completed/Failed/Cancelled)
-- Size, slippage, gas used
-- Timestamps
-
-You can also view all intents for the vault (across all strategies) from the vault-level intents log.
+Each strategy card has an **Intents** tab showing its dispatch history: intent ID, action, status (`Processing`/`Completed`/`Failed`/`Cancelled`), size, slippage, gas used, and timestamps. Vault-level intent history is also available across all strategies.
 
 ## Live Shard State
 
-When a strategy is `RUNNING`, the engine maintains a **shard** — an in-memory state context for that vault. Hover over indicator names in the canvas to see current values.
+Running strategies maintain in-memory shards with current indicator values, active intent count, and last tick timestamp.
 
-`GET /api/v1/engine/shards/{vault_id}/state` returns:
-- All indicator values
-- Active intent count
-- Last tick timestamp
+`GET /api/v1/engine/shards/{vault_id}/state` returns this state. A `404` means no shard exists (no running strategies).
 
-A 404 means no shard exists for the vault (no running strategies).
+## Drag-to-Reorder
 
-## Reordering Strategies
-
-Drag strategy cards to reorder within a column. Priority order affects which strategy gets to dispatch intents first when multiple strategies trigger simultaneously.
+Drag strategy cards within a column to change priority order. When multiple strategies trigger simultaneously, higher-priority strategies dispatch first.
 
 ## Optimistic Concurrency
 
-Strategy updates use a **version** field to prevent conflicting edits. If two clients edit the same strategy simultaneously, the second write returns `409 Conflict`. Refresh and retry with the latest version.
+Strategy updates require a `version` field. If two clients edit the same strategy, the second write returns `409 Conflict`. Refresh and retry with the latest version.
 
 ## API Reference
 
@@ -139,10 +113,10 @@ Strategy updates use a **version** field to prevent conflicting edits. If two cl
 | `/api/v1/strategies/{id}/state` | PATCH | Transition state |
 | `/api/v1/strategies/{id}/reload` | POST | Hot-reload running strategy |
 | `/api/v1/strategies/{id}/intents?limit=50` | GET | Strategy intent history |
-| `/api/v1/vaults/{vault_id}` | GET/PATCH | Kill switch, rate limits |
+| `/api/v1/vaults/{vault_id}` | GET/PATCH | Kill switch and rate limits |
 | `/api/v1/engine/status` | GET | Active shard count |
-| `/api/v1/engine/shards/{vault_id}/state` | GET | Live variable values |
+| `/api/v1/engine/shards/{vault_id}/state` | GET | Live indicator values |
 
 <Note>
-`vault_id` format for the Strategy Engine is `{chainId}:{vaultAddress}` (e.g., `8453:0xdef...`). This differs from Erebor which uses separate `chain_id` and `vault_address` parameters.
+`vault_id` in the Strategy Engine uses `{chainId}:{vaultAddress}` format (e.g., `8453:0xdef...`). Erebor uses separate `chain_id` and `vault_address` parameters.
 </Note>
