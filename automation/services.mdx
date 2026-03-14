@@ -3,17 +3,13 @@ title: "Service Health and Alerting"
 description: "Monitor 7 keeper workers and infrastructure health, control services programmatically, and integrate with alerting systems."
 ---
 
-🌐 Public · ✅ Live
+Automated service monitoring detects degradation before it impacts depositors and responds faster than manual observation allows.
 
-## Overview
-
-Automated service monitoring lets you detect degradation before it impacts depositors and respond faster than manual monitoring allows.
-
-Key automation patterns:
-- Poll service health every 30s and alert on degradation
-- Auto-pause a misbehaving service to prevent cascading failures
+Key patterns:
+- Poll service health every 30s, alert on degradation
+- Auto-pause a failing service to prevent cascading issues
 - Verify schedule changes propagated to the Celery beat
-- Control per-vault services via Erebor for targeted vault-level stops
+- Control per-vault services via Erebor for targeted stops
 
 ## Monitoring All 7 Services
 
@@ -37,14 +33,12 @@ def check_all_health():
     services = get_service_health()
     infra = get_infra_health()
 
-    # Infrastructure
     for comp in infra:
         if comp["status"] == "down":
             alert("CRITICAL", f"{comp['component']}: DOWN")
         elif comp["status"] == "degraded":
-            alert("WARNING", f"{comp['component']}: degraded — {comp.get('message', '')}")
+            alert("WARNING", f"{comp['component']}: degraded")
 
-    # Services
     critical_services = {"fulfill_deposits", "fulfill_redeems", "tx_manager"}
     for svc in services:
         rate = svc.get("success_rate", 1.0)
@@ -63,22 +57,15 @@ def check_all_health():
 
 ```python
 def pause_service(service_name: str):
-    resp = requests.post(
-        f"{SUPERMAN_URL}/services/{service_name}/pause",
-        headers=headers
-    )
+    resp = requests.post(f"{SUPERMAN_URL}/services/{service_name}/pause", headers=headers)
     resp.raise_for_status()
     print(f"Paused: {service_name}")
 
 def resume_service(service_name: str):
-    resp = requests.post(
-        f"{SUPERMAN_URL}/services/{service_name}/resume",
-        headers=headers
-    )
+    resp = requests.post(f"{SUPERMAN_URL}/services/{service_name}/resume", headers=headers)
     resp.raise_for_status()
     print(f"Resumed: {service_name}")
 
-# Example: auto-pause a failing service
 def auto_pause_if_failing(service_name: str, threshold: float = 0.80):
     services = get_service_health()
     svc = next((s for s in services if s["name"] == service_name), None)
@@ -87,17 +74,13 @@ def auto_pause_if_failing(service_name: str, threshold: float = 0.80):
         pause_service(service_name)
 ```
 
-## Updating Service Schedules
+## Updating Schedules
 
 ```python
 import time
 
 def update_schedule_and_verify(service_name: str, interval_seconds: int, timeout: int = 30):
-    """
-    Update a service's interval and wait for the Celery beat to confirm.
-    Uses exponential backoff for beat verification.
-    """
-    # Apply the change
+    """Update interval and wait for Celery beat to confirm."""
     resp = requests.put(
         f"{SUPERMAN_URL}/services/schedules/{service_name}",
         headers=headers,
@@ -106,7 +89,6 @@ def update_schedule_and_verify(service_name: str, interval_seconds: int, timeout
     resp.raise_for_status()
     print(f"Schedule update submitted for {service_name}: {interval_seconds}s")
 
-    # Verify beat has loaded the new schedule
     delay = 2
     start = time.time()
     while time.time() - start < timeout:
@@ -128,13 +110,12 @@ def update_schedule_and_verify(service_name: str, interval_seconds: int, timeout
 
 ## Per-Vault Service Controls (Erebor)
 
-For vault-scoped service control without stopping global workers:
+For vault-scoped control without stopping global workers:
 
 ```python
 EREBOR_URL = "https://erebor.superform.xyz"
 
 def pause_vault_service(chain_id: int, vault: str, service_name: str, reason: str = ""):
-    """Pause a specific service for a specific vault only."""
     resp = requests.put(
         f"{EREBOR_URL}/api/v1/vaults/{chain_id}/{vault}/services/{service_name}/pause",
         headers=headers,
@@ -172,10 +153,7 @@ def get_vault_services(chain_id: int, vault: str) -> list[dict]:
 
 ```python
 def check_scheduler_health():
-    resp = requests.get(
-        f"{SUPERMAN_URL}/services/scheduler/status",
-        headers=headers
-    )
+    resp = requests.get(f"{SUPERMAN_URL}/services/scheduler/status", headers=headers)
     resp.raise_for_status()
     status = resp.json()
 
@@ -190,7 +168,7 @@ def check_scheduler_health():
     return status
 ```
 
-## Full Service Monitor (TypeScript)
+## TypeScript Reference
 
 ```typescript
 const SUPERMAN_URL = "https://superman-api.superform.xyz";

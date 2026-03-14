@@ -3,28 +3,24 @@ title: "Monitoring Vault State"
 description: "Poll endpoints to track PPS, service health, and alert conditions for your vault."
 ---
 
-🌐 Public · ✅ Live
+SuperVaults uses a polling-first monitoring model. No webhook system is implemented yet. Use these intervals as a baseline:
 
-## Polling Strategy
-
-SuperVaults is a polling-first monitoring model until the webhook system is implemented. Use these intervals as a baseline:
-
-| Data | Endpoint | Recommended Interval |
-|------|----------|---------------------|
+| Data | Endpoint | Interval |
+|------|----------|----------|
 | Vault state (PPS, pause, supply) | `GET /api/v1/vaults/{chain_id}/{address}` | 15s |
 | Analytics overview (APY, TVL) | `GET .../analytics/overview` | 60s |
 | Risk metrics | `GET .../analytics/risk` | 120s |
 | Service health | `GET /services/status` | 30s |
 | Infrastructure health | `GET /health` | 30s |
 
-## Key Metrics to Monitor
+## Key Metrics
 
 ### PPS Staleness
 
 ```python
 def check_pps_staleness(vault):
     remaining = vault.get("remaining_staleness_time", 0)
-    if remaining < 3600:  # <1 hour remaining
+    if remaining < 3600:  # <1 hour
         alert("WARNING: PPS staleness — less than 1 hour remaining")
     if remaining < 600:   # <10 minutes
         alert("CRITICAL: PPS about to expire")
@@ -43,8 +39,6 @@ def check_service_health(services):
 ```
 
 ### Redemption Queue Depth
-
-Monitor `pending` redemption executions accumulating without `success` transitions:
 
 ```python
 def check_redemption_queue(executions):
@@ -98,10 +92,9 @@ def fetch_infra_health():
 def alert(severity: str, message: str):
     """Replace with Slack/PagerDuty integration."""
     log.warning(f"[{severity}] {message}")
-    # e.g.: send_slack_message(f"*{severity}*: {message}")
 
 def run_checks():
-    # Check vault state
+    # Vault state
     try:
         vault = fetch_vault_state()
 
@@ -120,7 +113,7 @@ def run_checks():
     except Exception as e:
         alert("ERROR", f"Failed to fetch vault state: {e}")
 
-    # Check services
+    # Services
     try:
         services = fetch_service_health()
         for svc in services:
@@ -132,7 +125,7 @@ def run_checks():
     except Exception as e:
         alert("ERROR", f"Failed to fetch service health: {e}")
 
-    # Check infrastructure
+    # Infrastructure
     try:
         components = fetch_infra_health()
         for comp in components:
@@ -172,7 +165,6 @@ async function fetchWithTimeout(url: string, timeoutMs = 10000) {
 
 function alert(severity: string, message: string) {
   console.warn(`[${severity}] ${message}`);
-  // Replace with: sendSlack(message), pagerdutyAlert(message), etc.
 }
 
 async function runChecks() {
@@ -207,9 +199,9 @@ setInterval(runChecks, 30_000);
 
 </CodeGroup>
 
-## Integrating Alerts
+## Alert Integrations
 
-Replace the `alert()` stub in the examples above with your notification system:
+Replace the `alert()` stub with your notification system:
 
 ### Slack
 
@@ -237,7 +229,7 @@ def pagerduty_alert(summary: str, severity: str = "warning"):
             "payload": {
                 "summary": summary,
                 "severity": severity,
-                "source": "supvervaults-monitor"
+                "source": "supervaults-monitor"
             }
         }
     )

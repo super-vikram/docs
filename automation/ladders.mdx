@@ -3,16 +3,16 @@ title: "Updating Ladders Programmatically"
 description: "Read and write all 5 ladder types via the Superman Python API for automated rebalancing."
 ---
 
-🌐 Public · ✅ Live · Legacy Backend (Superman Python)
-
-## Overview
-
 All ladder operations hit the **Superman Python** backend (`https://superman-api.superform.xyz`). The same JWT used for Erebor works here.
 
-Ladder automation patterns:
-- **APY-based rebalancing** — sort deposit priority by current yield source APY
-- **Liquidity-aware redemption** — deprioritize illiquid sources during high redemption demand
-- **Dynamic reserve adjustment** — increase reserve ahead of anticipated redemption spikes
+<Note>
+The Superman Python backend does not yet have an OpenAPI spec. Endpoint shapes documented here are derived from source code analysis.
+</Note>
+
+Common automation patterns:
+- **APY-based rebalancing**: sort deposit priority by current yield source APY
+- **Liquidity-aware redemption**: deprioritize illiquid sources during high redemption demand
+- **Dynamic reserve adjustment**: increase reserve ahead of anticipated redemption spikes
 
 ## Reading All Ladders
 
@@ -41,10 +41,7 @@ print("Enabled:", vault_ladder["is_enabled"])
 
 ```python
 def update_deposit_priority(chain_id: int, vault: str, ordered_addresses: list[str]):
-    """
-    Update deposit priority. First address = highest priority.
-    Addresses must all be currently whitelisted yield sources.
-    """
+    """First address = highest priority. All addresses must be whitelisted yield sources."""
     resp = requests.put(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/deposit-priority",
         headers=headers,
@@ -58,10 +55,7 @@ def update_deposit_priority(chain_id: int, vault: str, ordered_addresses: list[s
 
 ```python
 def update_redemption_priority(chain_id: int, vault: str, items: list[dict]):
-    """
-    items: [{ "address": "0x...", "min_balance_to_keep": "1000000000" }]
-    min_balance_to_keep is in wei.
-    """
+    """items: [{ "address": "0x...", "min_balance_to_keep": "1000000000" }] (wei)"""
     resp = requests.put(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/redemption-priority",
         headers=headers,
@@ -75,10 +69,7 @@ def update_redemption_priority(chain_id: int, vault: str, items: list[dict]):
 
 ```python
 def set_reserve(chain_id: int, vault: str, percent: int):
-    """
-    percent: integer 0-100.
-    10 = keep 10% of TVL in vault as free assets.
-    """
+    """Integer 0-100. 10 = keep 10% of TVL as free assets."""
     assert 0 <= percent <= 100
     resp = requests.put(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/reserve",
@@ -101,13 +92,7 @@ def get_claim_rewards_ladder(chain_id: int, vault: str) -> list[dict]:
     return resp.json()
 
 def update_claim_rewards_ladder(chain_id: int, vault: str, items: list[dict]):
-    """
-    items: [{
-        "token_address": "0x...",
-        "floor_amount": "1000000000000000000",  # in wei
-        "is_enabled": true
-    }]
-    """
+    """items: [{ "token_address": "0x...", "floor_amount": "1000000000000000000", "is_enabled": true }]"""
     resp = requests.put(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/claim-rewards-ladder",
         headers=headers,
@@ -117,7 +102,7 @@ def update_claim_rewards_ladder(chain_id: int, vault: str, items: list[dict]):
     return resp.json()
 
 def get_claimable_rewards(chain_id: int, vault: str) -> list[dict]:
-    """Get live accumulated reward balances."""
+    """Live accumulated reward balances."""
     resp = requests.get(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/claimable-rewards",
         headers=headers
@@ -138,13 +123,7 @@ def get_swap_ladder(chain_id: int, vault: str) -> list[dict]:
     return resp.json()
 
 def update_swap_ladder(chain_id: int, vault: str, items: list[dict]):
-    """
-    items: [{
-        "token_address": "0x...",
-        "floor_amount": "500000000",  # in token's native decimals
-        "is_enabled": true
-    }]
-    """
+    """items: [{ "token_address": "0x...", "floor_amount": "500000000", "is_enabled": true }]"""
     resp = requests.put(
         f"{SUPERMAN_URL}/ladder/{chain_id}/{vault}/swap-ladder",
         headers=headers,
@@ -154,36 +133,28 @@ def update_swap_ladder(chain_id: int, vault: str, items: list[dict]):
     return resp.json()
 ```
 
-## Example: Dynamic APY-Based Rebalancing
+## Example: APY-Based Rebalancing
 
 ```python
 def rebalance_by_apy(chain_id: int, vault: str, apy_data: dict[str, float]):
-    """
-    apy_data: { "0xYieldSource1...": 0.085, "0xYieldSource2...": 0.072, ... }
-    """
-    # Get current deposit priority
+    """apy_data: { "0xYieldSource1": 0.085, "0xYieldSource2": 0.072, ... }"""
     ladder = get_vault_ladder(chain_id, vault)
     current_order = [item["address"] for item in ladder["deposit_priority"]]
 
-    # Sort by APY descending
     ranked_order = sorted(current_order, key=lambda addr: apy_data.get(addr, 0), reverse=True)
 
-    # Only update if order has changed
     if ranked_order != current_order:
         print(f"Rebalancing: {current_order} → {ranked_order}")
         update_deposit_priority(chain_id, vault, ranked_order)
     else:
-        print("No rebalance needed — order is already optimal")
+        print("No rebalance needed")
 ```
 
-## Reserve Adjustment Strategy
+## Example: Dynamic Reserve Adjustment
 
 ```python
 def adjust_reserve_for_redemption_demand(chain_id: int, vault: str):
-    """
-    Increase reserve if redemption queue has pending items.
-    Return to default when queue clears.
-    """
+    """Increase reserve when redemption queue depth is high."""
     resp = requests.get(
         f"{SUPERMAN_URL}/fulfill-redeems/executions",
         headers=headers,
@@ -193,10 +164,10 @@ def adjust_reserve_for_redemption_demand(chain_id: int, vault: str):
     pending = [e for e in executions if e["status"] == "pending"]
 
     if len(pending) > 5:
-        set_reserve(chain_id, vault, 20)  # Raise reserve to 20%
+        set_reserve(chain_id, vault, 20)
         print(f"High redemption demand ({len(pending)} pending): reserve raised to 20%")
     else:
-        set_reserve(chain_id, vault, 5)   # Return to normal 5%
+        set_reserve(chain_id, vault, 5)
         print("Normal conditions: reserve at 5%")
 ```
 

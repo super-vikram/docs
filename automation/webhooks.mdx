@@ -3,15 +3,13 @@ title: "Webhooks and Event Streaming"
 description: "Webhook delivery is planned but not yet implemented. Use audit logs and polling as the current event stream."
 ---
 
-🌐 Public · 🟡 Partial — Audit Logs Available Now, Webhooks Planned
-
 <Warning>
-The **webhook system is not yet implemented**. The information below covers what is available today (audit logs + polling) and documents the planned webhook schema for early integrators building against the future API.
+The **webhook system is not yet implemented**. This page documents what is available today (audit logs + polling) and the planned webhook schema for integrators building against the future API.
 </Warning>
 
 ## Current: Audit Logs as Event Stream
 
-The audit log endpoint is available now in Erebor and serves as an interim event stream for vault operations:
+The audit log endpoint in Erebor serves as an interim event stream for vault operations:
 
 ### Query Audit Logs
 
@@ -99,9 +97,9 @@ while True:
 
 ## Planned: Webhook System
 
-When the webhook system ships, it will provide push-based event delivery to eliminate polling.
+When the webhook system ships, it will provide push-based event delivery.
 
-### Planned Webhook Events
+### Planned Events
 
 | Event Type | Description |
 |------------|-------------|
@@ -117,7 +115,7 @@ When the webhook system ships, it will provide push-based event delivery to elim
 | `redemption.fulfilled` | Redemption request(s) fulfilled |
 | `deposit.fulfilled` | Deposit executed |
 
-### Planned Webhook Delivery Format
+### Planned Delivery Format
 
 ```json
 {
@@ -135,23 +133,14 @@ When the webhook system ships, it will provide push-based event delivery to elim
 
 ### Planned Integrations
 
-- **Slack** — post to a channel on event trigger
-- **PagerDuty** — page on-call for critical events
-- **Discord** — post to a server channel
-- **Custom HTTP** — POST to any HTTPS endpoint
-
-### Planned Retry Policy
-
-Failed deliveries would be retried with exponential backoff (1s → 2s → 4s → 8s → 16s, max 5 attempts).
+Slack, PagerDuty, Discord, and custom HTTPS endpoints. Failed deliveries retried with exponential backoff (1s → 2s → 4s → 8s → 16s, max 5 attempts).
 
 ---
 
 ## Current Workaround Summary
 
-Until webhooks are implemented:
-
-| Need | Current Solution |
-|------|----------------|
+| Need | Solution |
+|------|---------|
 | Vault state changes | Poll `GET /api/v1/vaults/{chain_id}/{address}` every 15s |
 | Service degradation | Poll `GET /services/status` every 30s |
 | Operation events | Poll `GET /api/v1/audit/logs` every 60s |

@@ -3,28 +3,17 @@ title: "Building an Automated Curator"
 description: "Programmatic auth, safety patterns, and an end-to-end example for automated vault management."
 ---
 
-🌐 Public · ✅ Live
-
-## Why Automate?
-
-Manual vault management is limited by human response time. Automated curators can:
-
-- Monitor vault state 24/7 and respond to market changes in seconds
-- Rebalance deposit ladders based on real-time APY rankings
-- Pause services instantly when anomalies are detected
-- Execute consistent rule-based strategies without emotional bias
-
-SuperVaults supports full programmatic control via its four API backends.
+Automated curators monitor vault state 24/7, rebalance ladders based on real-time APY data, pause services on anomaly detection, and execute strategies without human latency. SuperVaults supports full programmatic control across all four API backends.
 
 ## Authentication for Automation
 
-The Curator App uses Dynamic.xyz for browser-based wallet auth. For automation scripts, you need to generate a JWT without the browser:
+Generate a JWT without the browser:
 
 1. Sign an EIP-712 auth message with your wallet's private key
 2. Submit the signature to Dynamic.xyz to receive a JWT
-3. Use the JWT as `Authorization: Bearer <jwt>` on all requests
+3. Pass the JWT as `Authorization: Bearer <jwt>` on all requests
 
-Once you have a JWT, verify it against Erebor:
+Verify against Erebor:
 
 <CodeGroup>
 
@@ -36,7 +25,6 @@ JWT = "<your-jwt>"
 
 headers = {"Authorization": f"Bearer {JWT}"}
 
-# Confirm auth and get vault roles
 resp = requests.get(f"{EREBOR_URL}/api/v1/auth/me", headers=headers)
 resp.raise_for_status()
 user = resp.json()
@@ -64,25 +52,25 @@ console.log(`Vaults: ${user.vaults.map((v: any) => v.vault_address)}`);
 ## Safety Principles
 
 <Warning>
-Automated scripts have full manager-level access. A bug can modify live vault configuration. Follow these principles before deploying any automation.
+Automated scripts have full manager-level access. A bug can modify live vault configuration. Apply these safeguards before deploying.
 </Warning>
 
 ### Test on Base First
 
-Base (chain ID: 8453) has lower gas costs and faster confirmation times. Run all automation scripts against Base vaults before Ethereum mainnet.
+Base (chain ID: 8453) has lower gas costs and faster confirmation times. Validate all automation against Base vaults before Ethereum mainnet.
 
-### Rate Limit Your Polling
+### Rate Limit Polling
 
-| Endpoint | Recommended Poll Interval |
-|----------|--------------------------|
-| Vault state | 15 seconds |
-| Analytics overview | 60 seconds |
-| Service health | 30 seconds |
+| Data | Recommended Interval |
+|------|---------------------|
+| Vault state | 15s |
+| Analytics overview | 60s |
+| Service health | 30s |
 | Ladder state | On-demand (after changes) |
 
-### Implement Circuit Breakers
+### Circuit Breakers
 
-Stop automation if consecutive API errors are detected:
+Stop automation on consecutive API failures:
 
 ```python
 MAX_CONSECUTIVE_ERRORS = 5
@@ -101,18 +89,18 @@ def safe_api_call(fn):
         raise
 ```
 
-### Never Modify Production Without Validation
+### Validate Before Writing
 
 Before pushing ladder changes:
 1. Fetch current state
-2. Validate proposed change is meaningful (e.g., order actually changed)
-3. Check that yield sources in new order are all still whitelisted
+2. Validate the proposed change is meaningful (order actually changed)
+3. Confirm yield sources in the new order are all still whitelisted
 4. Apply change
-5. Re-fetch and verify change was applied
+5. Re-fetch and verify the change was applied
 
-## End-to-End Example: Automated Deposit Rebalancing
+## Example: Automated Deposit Rebalancing
 
-This example fetches yield source APYs, sorts them, and updates the deposit ladder to match.
+Fetches yield source data, sorts by APY, and updates the deposit ladder:
 
 <CodeGroup>
 
@@ -123,25 +111,15 @@ import time
 EREBOR_URL = "https://erebor.superform.xyz"
 SUPERMAN_URL = "https://superman-api.superform.xyz"
 JWT = "<your-jwt>"
-
 CHAIN_ID = 8453
 VAULT_ADDRESS = "0xYourVault..."
 
 headers = {"Authorization": f"Bearer {JWT}"}
 
-def get_vault_analytics():
-    resp = requests.get(
-        f"{EREBOR_URL}/api/v1/vaults/{CHAIN_ID}/{VAULT_ADDRESS}/analytics/overview",
-        headers=headers
-    )
-    resp.raise_for_status()
-    return resp.json()
-
 def get_ladder_state():
     resp = requests.get(f"{SUPERMAN_URL}/ladder/ladders", headers=headers)
     resp.raise_for_status()
     ladders = resp.json()
-    # Filter to our vault
     return next((l for l in ladders if l["vault_address"].lower() == VAULT_ADDRESS.lower()), None)
 
 def update_deposit_priority(ordered_addresses: list[str]):
@@ -154,7 +132,6 @@ def update_deposit_priority(ordered_addresses: list[str]):
     print(f"Updated deposit priority: {ordered_addresses}")
 
 def run_rebalance():
-    # 1. Get current ladder
     ladder = get_ladder_state()
     if not ladder:
         print("Vault not found in ladder state")
@@ -163,11 +140,8 @@ def run_rebalance():
     current_order = [item["address"] for item in ladder["deposit_priority"]]
     print(f"Current order: {current_order}")
 
-    # 2. Fetch APY for each yield source
-    # (This assumes you have APY data per yield source — implement per your data source)
+    # Implement your APY ranking logic here
     # ranked_by_apy = sort_yield_sources_by_apy(current_order)
-
-    # 3. If order has changed, update
     # if ranked_by_apy != current_order:
     #     update_deposit_priority(ranked_by_apy)
 
@@ -177,16 +151,14 @@ if __name__ == "__main__":
             run_rebalance()
         except Exception as e:
             print(f"Error: {e}")
-        time.sleep(300)  # Run every 5 minutes
+        time.sleep(300)  # Every 5 minutes
 ```
 
 ```typescript TypeScript
-const EREBOR_URL = "https://erebor.superform.xyz";
 const SUPERMAN_URL = "https://superman-api.superform.xyz";
 const JWT = process.env.SUPERMAN_JWT!;
 const CHAIN_ID = 8453;
 const VAULT_ADDRESS = "0xYourVault...";
-
 const headers = { Authorization: `Bearer ${JWT}` };
 
 async function getLadderState() {
@@ -221,10 +193,6 @@ async function runRebalance() {
   console.log("Current order:", currentOrder);
 
   // Implement your rebalancing logic here
-  // const newOrder = sortByApy(currentOrder);
-  // if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
-  //   await updateDepositPriority(newOrder);
-  // }
 }
 
 setInterval(runRebalance, 300_000);
@@ -239,7 +207,7 @@ setInterval(runRebalance, 300_000);
     Poll vault state and build alert conditions.
   </Card>
   <Card title="Ladder Automation" icon="list-ol" href="/automation/ladders">
-    Full reference for programmatic ladder updates.
+    Programmatic ladder updates for all 5 ladder types.
   </Card>
   <Card title="Service Health" icon="heart-pulse" href="/automation/services">
     Monitor and control keeper services via API.
