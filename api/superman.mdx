@@ -3,23 +3,15 @@ title: "Superman API Reference"
 description: "Manual reference for the Superman Python legacy backend — ladder config, execution history, and service health."
 ---
 
-🌐 Public · ✅ Live · Legacy Backend
-
 <Warning>
-The Superman Python backend does **not yet have an OpenAPI spec**. This page is a manually-maintained reference derived from source code analysis. Endpoint shapes are accurate as of March 2026 but may drift. OpenAPI spec generation is a P0 priority for the Superform team.
+The Superman Python backend **does not have an OpenAPI spec**. This reference is manually maintained from source code analysis. Endpoint shapes are accurate as of March 2026 but may drift. OpenAPI spec generation is a priority for the Superform team.
 </Warning>
 
-## About Superman
+Superman is a Python (Celery + Flask/FastAPI) service powering the operational layer of SuperVaults: ladder configuration, execution history, and keeper service health.
 
-Superman is a Python (Celery + Flask/FastAPI) service powering the operational layer of SuperVaults. It manages:
-
-- **Ladder configuration** — deposit/redemption/reserve/claim/swap priorities
-- **Execution history** — deposit and redemption execution logs
-- **Service health** — 7 Celery worker statuses and infrastructure health
-
-**Base URL:** `https://superman-api.superform.xyz`  
-**Auth:** `Authorization: Bearer <jwt>` (same JWT as Erebor)  
-**OpenAPI spec:** ❌ Does not yet exist
+**Base URL:** `https://superman-api.superform.xyz`
+**Auth:** `Authorization: Bearer <jwt>` (same JWT as Erebor)
+**OpenAPI spec:** Not yet available
 
 ---
 
@@ -29,10 +21,9 @@ Superman is a Python (Celery + Flask/FastAPI) service powering the operational l
 
 ```
 GET /ladder/ladders
-Authorization: Bearer <jwt>
 ```
 
-Returns all ladder configurations. The client filters by `vault_address` and `chain_id` client-side.
+Returns all ladder configurations. Filter by `vault_address` and `chain_id` client-side.
 
 ```json
 [
@@ -51,36 +42,20 @@ Returns all ladder configurations. The client filters by `vault_address` and `ch
 
 ```
 GET /vaults/{normalizedAddress}
-Authorization: Bearer <jwt>
 ```
-
-Returns vault-level state (enabled status, etc.).
 
 ### Update Deposit Priority
 
 ```
 PUT /ladder/{chainId}/{vaultAddress}/deposit-priority
-Authorization: Bearer <jwt>
-Content-Type: application/json
-
-{
-  "deposit_priority": [
-    { "address": "0xYieldSource1..." },
-    { "address": "0xYieldSource2..." }
-  ]
-}
+{ "deposit_priority": [{ "address": "0xYieldSource1..." }, { "address": "0xYieldSource2..." }] }
 ```
 
 ### Update Redemption Priority
 
 ```
 PUT /ladder/{chainId}/{vaultAddress}/redemption-priority
-
-{
-  "redemption_priority": [
-    { "address": "0xYieldSource1...", "min_balance_to_keep": "1000000000000000000" }
-  ]
-}
+{ "redemption_priority": [{ "address": "0xYieldSource1...", "min_balance_to_keep": "1000000000000000000" }] }
 ```
 
 `min_balance_to_keep` is in wei.
@@ -92,7 +67,7 @@ PUT /ladder/{chainId}/{vaultAddress}/reserve
 { "reserve_percent": 5 }
 ```
 
-Range: 0–100 (integer percentage).
+Range: 0-100.
 
 ### Toggle Vault Enabled
 
@@ -101,26 +76,21 @@ PUT /vaults/{chainId}/{vaultAddress}/enabled
 { "enabled": true }
 ```
 
-Master switch for all keeper workers for this vault.
+Master switch for all keeper workers on this vault.
 
 ### Claim Rewards Ladder
 
 ```
 GET /ladder/{chainId}/{vaultAddress}/claim-rewards-ladder
 PUT /ladder/{chainId}/{vaultAddress}/claim-rewards-ladder
-
 {
   "claim_rewards_ladder": [
-    {
-      "token_address": "0x...",
-      "floor_amount": "1000000000000000000",
-      "is_enabled": true
-    }
+    { "token_address": "0x...", "floor_amount": "1000000000000000000", "is_enabled": true }
   ]
 }
 ```
 
-### Claimable Rewards (Live Balances)
+### Claimable Rewards
 
 ```
 GET /ladder/{chainId}/{vaultAddress}/claimable-rewards
@@ -133,19 +103,14 @@ Returns current accumulated reward token balances.
 ```
 GET /ladder/{chainId}/{vaultAddress}/swap-ladder
 PUT /ladder/{chainId}/{vaultAddress}/swap-ladder
-
 {
   "swap_ladder": [
-    {
-      "token_address": "0x...",
-      "floor_amount": "500000000",
-      "is_enabled": true
-    }
+    { "token_address": "0x...", "floor_amount": "500000000", "is_enabled": true }
   ]
 }
 ```
 
-### Swappable Tokens (Live Balances)
+### Swappable Tokens
 
 ```
 GET /ladder/{chainId}/{vaultAddress}/swappable-tokens
@@ -158,9 +123,7 @@ GET /ladder/{chainId}/{vaultAddress}/swappable-tokens
 ### Deposit Executions
 
 ```
-GET /fulfill-deposits/executions
-?chain_id={id}&vault_address={addr}&page={n}&limit={n}
-Authorization: Bearer <jwt>
+GET /fulfill-deposits/executions?chain_id={id}&vault_address={addr}&page={n}&limit={n}
 ```
 
 ```json
@@ -186,9 +149,7 @@ Authorization: Bearer <jwt>
 ### Redemption Executions
 
 ```
-GET /fulfill-redeems/executions
-?chain_id={id}&vault_address={addr}&page={n}&limit={n}
-Authorization: Bearer <jwt>
+GET /fulfill-redeems/executions?chain_id={id}&vault_address={addr}&page={n}&limit={n}
 ```
 
 ```json
@@ -219,27 +180,25 @@ Authorization: Bearer <jwt>
 
 ```
 GET /health
-Authorization: Bearer <jwt>
 ```
 
 ```json
 {
   "components": [
     { "component": "api", "status": "operational", "last_checked": "...", "message": null },
-    { "component": "database", "status": "operational", ... },
-    { "component": "redis", "status": "operational", ... },
-    { "component": "celery", "status": "operational", ... },
-    { "component": "subgraph", "status": "operational", ... },
-    { "component": "rpc", "status": "operational", ... }
+    { "component": "database", "status": "operational" },
+    { "component": "redis", "status": "operational" },
+    { "component": "celery", "status": "operational" },
+    { "component": "subgraph", "status": "operational" },
+    { "component": "rpc", "status": "operational" }
   ]
 }
 ```
 
-### Service Status (All 7 Workers)
+### All Service Statuses
 
 ```
 GET /services/status
-Authorization: Bearer <jwt>
 ```
 
 ```json
@@ -261,28 +220,19 @@ Authorization: Bearer <jwt>
 }
 ```
 
-### Pause a Service
+### Pause / Resume a Service
 
 ```
 POST /services/{service_name}/pause
-Authorization: Bearer <jwt>
-```
-
-### Resume a Service
-
-```
 POST /services/{service_name}/resume
-Authorization: Bearer <jwt>
 ```
 
-Valid service names: `fulfill_deposits`, `fulfill_redeems`, `fulfill_claims`, `fulfill_swaps`, `redemption_queue_engine`, `cleanup_processed_redeems`, `tx_manager`
+Valid names: `fulfill_deposits`, `fulfill_redeems`, `fulfill_claims`, `fulfill_swaps`, `redemption_queue_engine`, `cleanup_processed_redeems`, `tx_manager`
 
 ### Update Schedule
 
 ```
 PUT /services/schedules/{service_name}
-Authorization: Bearer <jwt>
-
 { "interval_seconds": 60 }
 ```
 
@@ -290,7 +240,6 @@ Authorization: Bearer <jwt>
 
 ```
 GET /services/scheduler/status
-Authorization: Bearer <jwt>
 ```
 
 ```json
@@ -298,7 +247,7 @@ Authorization: Bearer <jwt>
   "last_sync_at": "2025-03-01T10:00:00Z",
   "next_sync_in_seconds": 30,
   "sync_interval_seconds": 60,
-  "loaded_schedules": ["fulfill_deposits", ...],
+  "loaded_schedules": ["fulfill_deposits", "..."],
   "is_leader": true,
   "instance_id": "worker-1",
   "status": "healthy"
@@ -312,6 +261,6 @@ Authorization: Bearer <jwt>
 | Code | Meaning |
 |------|---------|
 | `401` | JWT missing or expired |
-| `403` | Not a SuperVaults Manager — wallet has no manager role |
+| `403` | Wallet has no manager role |
 | `404` | Vault not found |
 | `422` | Validation error in request body |

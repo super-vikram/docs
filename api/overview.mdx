@@ -3,11 +3,9 @@ title: "API Overview"
 description: "Four backends, one auth model. Route-to-backend matrix and common patterns for the SuperVaults API."
 ---
 
-🌐 Public · ✅ Live
+SuperVaults exposes ~127 endpoints across four backend services. All share a single JWT auth model issued by Dynamic.xyz.
 
-## Four Backend Services
-
-SuperVaults exposes APIs across four separate backend services, each with its own base URL:
+## Backend Services
 
 | Service | Language | Base URL | OpenAPI Spec |
 |---------|----------|----------|-------------|
@@ -17,7 +15,7 @@ SuperVaults exposes APIs across four separate backend services, each with its ow
 | **OMS** | Go | `https://oms.superform.xyz` | ✅ Available |
 
 <Warning>
-The **Superman Python** backend (which powers ladder, history, and services) does not yet have an OpenAPI spec. The [Superman API reference](/api/superman) documents its endpoints manually. Treat endpoint shapes as best-effort until a spec is generated.
+The **Superman Python** backend (ladder, history, services) does not yet have an OpenAPI spec. The [Superman API reference](/api/superman) is manually maintained. Treat endpoint shapes as best-effort until a spec is generated.
 </Warning>
 
 ## Authentication
@@ -25,12 +23,12 @@ The **Superman Python** backend (which powers ladder, history, and services) doe
 All endpoints except explicitly public ones require a Bearer JWT:
 
 ```
-Authorization: Bearer <superman_jwt>
+Authorization: Bearer <jwt>
 ```
 
-The JWT is issued by Dynamic.xyz upon wallet connection. See [Authentication](/authentication) for the full auth flow.
+The JWT is issued by Dynamic.xyz upon wallet connection. See [Authentication](/authentication) for the full flow.
 
-### Public Endpoints (No Auth Required)
+### Public Endpoints
 
 | Endpoint | Backend |
 |----------|---------|
@@ -39,18 +37,15 @@ The JWT is issued by Dynamic.xyz upon wallet connection. See [Authentication](/a
 
 ## Common Patterns
 
-### The Prepare Pattern
+### Prepare Pattern
 
-On-chain operations follow a two-phase flow:
+On-chain operations use a two-phase flow:
 
 1. **Prepare** — POST to a `prepare-*` endpoint. Returns raw EVM calldata.
-2. **Sign** — Pass the calldata to your wallet (`{ to, data, value }`).
-3. **Confirm** (where applicable) — Notify Erebor of the tx hash.
-
-Examples: vault creation, yield source add/remove, user management, emergency pause.
+2. **Sign** — Pass `{ to, data, value }` to your wallet.
+3. **Confirm** (where applicable) — Notify Erebor of the transaction hash.
 
 ```json
-// PrepareResult — returned by all prepare-* endpoints
 {
   "to": "0xContractAddress...",
   "data": "0xencoded_calldata...",
@@ -58,54 +53,56 @@ Examples: vault creation, yield source add/remove, user management, emergency pa
 }
 ```
 
+Used for: vault creation, yield source management, user management, merkle root proposals, emergency pause.
+
 ### Pagination
 
-Erebor endpoints use cursor-based or offset-based pagination:
+Erebor supports cursor-based and offset-based pagination:
 
 ```
 ?limit=50&offset=0
 ?limit=50&cursor=<next_cursor>
 ```
 
-Most list responses include `has_more` or `next_cursor` for continuation.
+Most list responses include `has_more` or `next_cursor`.
 
 ### Async Jobs
 
-Long-running operations (vault creation, merkle tree generation) use async job patterns:
+Long-running operations (vault creation, merkle tree generation) return a `job_id`:
 
-1. Trigger the operation → receive a `job_id`
+1. Trigger operation → receive `job_id`
 2. Poll `GET /api/v1/.../jobs/{job_id}` with exponential backoff
-3. Job status: `pending` → `running` → `completed` / `failed`
+3. Status: `pending` → `running` → `completed` / `failed`
 
-### Optimistic Concurrency (Strategy Engine)
+### Optimistic Concurrency
 
-Strategy PUT operations include a `version` field. If two clients edit the same strategy simultaneously, the second write returns `409 Conflict`. Refresh and retry with the latest version.
+Strategy Engine PUT operations require a `version` field. Concurrent edits return `409 Conflict`. Refresh and retry with the latest version.
 
 ## Error Codes
 
 | Code | Meaning |
 |------|---------|
-| `400` | Bad request — invalid parameters |
-| `401` | Unauthorized — missing or expired JWT |
-| `403` | Forbidden — JWT valid but insufficient role |
-| `404` | Not found — resource does not exist |
-| `409` | Conflict — duplicate or version conflict |
+| `400` | Invalid parameters |
+| `401` | Missing or expired JWT |
+| `403` | JWT valid, insufficient role |
+| `404` | Resource not found |
+| `409` | Duplicate or version conflict |
 | `500` | Internal server error |
 
 ## Route-to-Backend Matrix
 
-| Route / Feature | Backend | Auth |
-|----------------|---------|------|
-| Home vault list | Erebor (public) | None |
+| Feature | Backend | Auth |
+|---------|---------|------|
+| Home vault list | Erebor | None |
 | Dashboard analytics | Erebor | JWT |
 | Strategy canvas | Strategy Engine | JWT |
-| Ladder config | Superman Python | JWT |
+| Ladder config | Superman | JWT |
 | Merkle tree management | Erebor | JWT |
 | Yield source management | Erebor | JWT |
 | User management | Erebor | JWT |
 | Vault settings | Erebor | JWT |
-| Execution history | Superman Python | JWT |
-| Service health | Superman Python | JWT |
+| Execution history | Superman | JWT |
+| Service health | Superman | JWT |
 | Pause operations | Erebor | JWT |
 | Registry management | Erebor | JWT |
 | Admin backfill | Erebor | JWT |
@@ -114,19 +111,22 @@ Strategy PUT operations include a `version` field. If two clients edit the same 
 
 ## Rate Limits
 
-Rate limits are not yet published. When integrating automation, implement conservative polling strategies:
-- Vault state: poll no faster than every 15 seconds
-- Analytics: poll no faster than every 60 seconds
-- Services health: poll no faster than every 30 seconds
+Rate limits are not yet published. Recommended polling intervals for automation:
 
-Implement exponential backoff on `429 Too Many Requests` responses.
+| Data | Interval |
+|------|----------|
+| Vault state | 15s |
+| Analytics | 60s |
+| Service health | 30s |
+
+Implement exponential backoff on `429 Too Many Requests`.
 
 ## Endpoint Counts
 
 | Backend | Endpoints |
 |---------|----------|
 | Erebor | ~89 |
-| Superman Python | ~20 |
+| Superman | ~20 |
 | Strategy Engine | 14 |
 | OMS | 4 |
 | **Total** | **~127** |

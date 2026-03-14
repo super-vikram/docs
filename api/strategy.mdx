@@ -3,18 +3,14 @@ title: "Strategy Engine API Reference"
 description: "14 endpoints for creating and managing rule-based strategies, vault kill switches, and live shard state."
 ---
 
-🌐 Public · ✅ Live
+The Strategy Engine evaluates curator-defined rules and dispatches DeFiX intents to the OMS. It maintains in-memory **shards** for each active vault, running strategy tick loops.
 
-## About the Strategy Engine
-
-The Strategy Engine is a Go service that evaluates curator-defined rules and dispatches DeFiX intents to the OMS. It maintains in-memory **shards** for each active vault, running strategy tick loops.
-
-**Base URL:** `https://strategy.superform.xyz`  
-**Auth:** `Authorization: Bearer <jwt>`  
+**Base URL:** `https://strategy.superform.xyz`
+**Auth:** `Authorization: Bearer <jwt>`
 **OpenAPI spec:** `strategy-openapi.json` ✅
 
 <Note>
-`vault_id` in the Strategy Engine uses the format `{chainId}:{vaultAddress}` — e.g., `8453:0xdef...`. This is different from Erebor, which uses separate `chain_id` and `vault_address` parameters.
+`vault_id` in the Strategy Engine uses `{chainId}:{vaultAddress}` format (e.g., `8453:0xdef...`). Erebor uses separate `chain_id` and `vault_address` parameters.
 </Note>
 
 ---
@@ -25,7 +21,6 @@ The Strategy Engine is a Go service that evaluates curator-defined rules and dis
 
 ```
 GET /api/v1/strategies?vault_id={vault_id}&limit=50
-Authorization: Bearer <jwt>
 ```
 
 Returns all strategies for a vault, sorted by priority.
@@ -34,16 +29,15 @@ Returns all strategies for a vault, sorted by priority.
 
 ```
 GET /api/v1/strategies/{strategy_id}
-Authorization: Bearer <jwt>
 ```
 
 ### Create Strategy
 
 ```
 POST /api/v1/strategies
-Authorization: Bearer <jwt>
-Content-Type: application/json
+```
 
+```json
 {
   "vault_id": "8453:0xdef...",
   "name": "USDC Deposit Strategy",
@@ -78,54 +72,48 @@ Content-Type: application/json
 
 ```
 PUT /api/v1/strategies/{strategy_id}
-Authorization: Bearer <jwt>
+```
 
+```json
 {
   "version": 3,
   "name": "Updated USDC Deposit Strategy",
-  ...
+  "..."
 }
 ```
 
-**Version is required.** Returns `409 Conflict` if the provided version doesn't match the current version — optimistic concurrency control.
+**Version is required.** Returns `409 Conflict` if the version does not match current state (optimistic concurrency).
 
 ### Delete Strategy
 
 ```
 DELETE /api/v1/strategies/{strategy_id}
-Authorization: Bearer <jwt>
 ```
 
 ### Transition State
 
 ```
 PATCH /api/v1/strategies/{strategy_id}/state
-Authorization: Bearer <jwt>
-
 { "state": "RUNNING" }
 ```
 
-Valid transitions: `IDLE → RUNNING`, `RUNNING → IDLE`
+Valid transitions: `IDLE → RUNNING`, `RUNNING → IDLE`. `PAUSED` is set by the vault kill switch, not by this endpoint.
 
-State machine enforced server-side. `PAUSED` state is set by the vault kill switch, not directly by this endpoint.
-
-### Hot-Reload Strategy
+### Hot-Reload
 
 ```
 POST /api/v1/strategies/{strategy_id}/reload
-Authorization: Bearer <jwt>
 ```
 
-Reloads strategy configuration in the running shard without stopping the tick loop. Use when you've updated a strategy and want the changes to take effect immediately.
+Reloads strategy config in the running shard without stopping the tick loop. Use after updating a strategy to apply changes immediately.
 
 ### Strategy Intents
 
 ```
 GET /api/v1/strategies/{strategy_id}/intents?limit=50
-Authorization: Bearer <jwt>
 ```
 
-Returns the execution history of DeFiX intents dispatched by this strategy.
+DeFiX intent history for this strategy.
 
 ---
 
@@ -135,7 +123,6 @@ Returns the execution history of DeFiX intents dispatched by this strategy.
 
 ```
 GET /api/v1/vaults/{vault_id}
-Authorization: Bearer <jwt>
 ```
 
 ```json
@@ -151,18 +138,15 @@ Authorization: Bearer <jwt>
 
 ```
 PATCH /api/v1/vaults/{vault_id}
-Authorization: Bearer <jwt>
-
 { "kill_switch": true }
 ```
 
-Engaging the kill switch transitions all `RUNNING` strategies for this vault to `PAUSED`.
+Engaging the kill switch transitions all `RUNNING` strategies to `PAUSED`.
 
 ### Vault Intents
 
 ```
 GET /api/v1/vaults/{vault_id}/intents?limit=50
-Authorization: Bearer <jwt>
 ```
 
 All intents across all strategies for the vault.
@@ -175,7 +159,6 @@ All intents across all strategies for the vault.
 
 ```
 GET /api/v1/engine/status
-Authorization: Bearer <jwt>
 ```
 
 ```json
@@ -189,10 +172,9 @@ Authorization: Bearer <jwt>
 
 ```
 GET /api/v1/engine/shards/{vault_id}/state
-Authorization: Bearer <jwt>
 ```
 
-Returns live in-memory state for the vault's shard:
+Live in-memory state for the vault's shard:
 
 ```json
 {
@@ -205,11 +187,11 @@ Returns live in-memory state for the vault's shard:
     "free_assets": 150000000000000000000,
     "tvl": 1250000000000000000000
   },
-  "strategies": [...]
+  "strategies": ["..."]
 }
 ```
 
-Returns `404` when no shard exists for the vault (no running strategies). This is not an error.
+Returns `404` when no shard exists (no running strategies). This is not an error.
 
 ---
 

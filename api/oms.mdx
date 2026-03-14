@@ -3,18 +3,14 @@ title: "OMS API — DeFiX Intents"
 description: "4-endpoint DeFiX v0.1 intent protocol for submitting, tracking, and cancelling on-chain vault operations."
 ---
 
-🌐 Public · ✅ Live
+The OMS (Order Management System) implements the **DeFiX v0.1** protocol: a standardized intent interface for DeFi vault operations. It receives intents from the Strategy Engine and executes them on-chain.
 
-## About the OMS
-
-The OMS (Order Management System) implements the **DeFiX v0.1** protocol — a standardized intent interface for DeFi vault operations. It receives intents from the Strategy Engine and executes them on-chain.
-
-**Base URL:** `https://oms.superform.xyz`  
-**Auth:** `Authorization: Bearer <jwt>`  
+**Base URL:** `https://oms.superform.xyz`
+**Auth:** `Authorization: Bearer <jwt>`
 **OpenAPI spec:** `oms-openapi.json` ✅
 
 <Note>
-The OMS is primarily a **backend-facing** service. In normal operations, the Strategy Engine submits intents to the OMS automatically when strategies trigger. Direct OMS access is relevant for advanced automation scenarios or custom strategy implementations.
+The OMS is primarily backend-facing. In normal operations, the Strategy Engine submits intents automatically when strategies trigger. Direct OMS access is relevant for custom strategy implementations or advanced automation.
 </Note>
 
 ## Intent Lifecycle
@@ -25,7 +21,7 @@ Submit → Processing → Completed
                    ↘ Cancelled (only while Processing)
 ```
 
-Once an intent reaches `Completed` or `Failed`, it is terminal and cannot be modified.
+Terminal states (`Completed`, `Failed`) cannot be modified.
 
 ---
 
@@ -35,9 +31,9 @@ Once an intent reaches `Completed` or `Failed`, it is terminal and cannot be mod
 
 ```
 POST /defix/intents
-Authorization: Bearer <jwt>
-Content-Type: application/json
+```
 
+```json
 {
   "vault_id": "8453:0xdef...",
   "action": "DEPOSIT",
@@ -57,7 +53,7 @@ Content-Type: application/json
 }
 ```
 
-Returns:
+Response:
 ```json
 {
   "id": "intent-uuid",
@@ -70,7 +66,6 @@ Returns:
 
 ```
 GET /defix/intents/{intent_id}
-Authorization: Bearer <jwt>
 ```
 
 ```json
@@ -91,38 +86,24 @@ Authorization: Bearer <jwt>
 
 ```
 POST /defix/intents/{intent_id}/cancel
-Authorization: Bearer <jwt>
 ```
 
-Only intents in `Processing` state can be cancelled. Returns `409 Conflict` if the intent is already in a terminal state (`Completed` or `Failed`).
+Only `Processing` intents can be cancelled. Returns `409 Conflict` if the intent is already terminal.
 
 ### Get Intent Events
 
 ```
 GET /defix/intents/{intent_id}/events
-Authorization: Bearer <jwt>
 ```
 
-Returns the event log for an intent — state transitions, execution attempts, errors:
+State transition log:
 
 ```json
 {
   "events": [
-    {
-      "timestamp": "2025-03-01T10:00:00Z",
-      "event_type": "submitted",
-      "details": {}
-    },
-    {
-      "timestamp": "2025-03-01T10:01:00Z",
-      "event_type": "processing",
-      "details": { "attempt": 1 }
-    },
-    {
-      "timestamp": "2025-03-01T10:01:32Z",
-      "event_type": "completed",
-      "details": { "tx_hash": "0xabc...", "gas_used": 180000 }
-    }
+    { "timestamp": "2025-03-01T10:00:00Z", "event_type": "submitted", "details": {} },
+    { "timestamp": "2025-03-01T10:01:00Z", "event_type": "processing", "details": { "attempt": 1 } },
+    { "timestamp": "2025-03-01T10:01:32Z", "event_type": "completed", "details": { "tx_hash": "0xabc...", "gas_used": 180000 } }
   ]
 }
 ```
@@ -142,10 +123,10 @@ Returns the event log for an intent — state transitions, execution attempts, e
 
 ## DeFiX v0.1 Protocol Notes
 
-- Intents are **idempotent** — submitting the same intent twice returns the existing intent (based on vault + action + config hash)
+- Intents are **idempotent**: submitting the same intent twice returns the existing intent (based on vault + action + config hash)
 - The OMS handles nonce management, gas estimation, and transaction broadcasting
-- Failed intents include an error message and may be retried by the Strategy Engine depending on error type
-- The OMS validates the merkle proof in `auth_signing` before broadcasting the transaction
+- Failed intents include error messages and may be retried by the Strategy Engine
+- The OMS validates the merkle proof in `auth_signing` before broadcasting
 
 ---
 

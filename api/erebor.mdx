@@ -3,18 +3,14 @@ title: "Erebor API Reference"
 description: "Complete reference for the Erebor Go management API — ~89 endpoints across auth, vaults, analytics, merkle, registry, and more."
 ---
 
-🌐 Public · ✅ Live
+Erebor is the primary management backend for SuperVaults. Go service, ~89 REST endpoints organized into 14 domains.
 
-## About Erebor
-
-Erebor is the primary backend for SuperVaults management. It is a Go service exposing ~89 REST endpoints organized into 14 domains.
-
-**Base URL:** `https://erebor.superform.xyz`  
-**Auth:** `Authorization: Bearer <jwt>` (except public endpoints)  
+**Base URL:** `https://erebor.superform.xyz`
+**Auth:** `Authorization: Bearer <jwt>` (except public endpoints)
 **OpenAPI spec:** `erebor-openapi2.json`
 
 <Note>
-The Erebor OpenAPI spec does not currently include the Zap Terminal AI analysis endpoint (`GET /api/v1/vaults/{vaultAddress}/ai/analysis?chain_id={}`). This endpoint is operational but undocumented in the spec.
+The Erebor OpenAPI spec does not include the Zap Terminal AI analysis endpoint (`GET /api/v1/vaults/{vaultAddress}/ai/analysis?chain_id={}`). This endpoint is operational but not yet in the spec.
 </Note>
 
 ---
@@ -32,16 +28,16 @@ The Erebor OpenAPI spec does not currently include the Zap Terminal AI analysis 
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
-| `/api/v1/public/vaults` | GET | None | Public list of all vaults with TVL and APY |
+| `/api/v1/public/vaults` | GET | None | Public vault list with TVL and APY |
 | `/api/v1/vaults` | GET | JWT | Authenticated vault list (`?detail=minimal&limit=500`) |
-| `/api/v1/vaults/{chain_id}/{vault_address}` | GET | JWT | Full vault detail — PPS, supply, allocation, managers |
+| `/api/v1/vaults/{chain_id}/{vault_address}` | GET | JWT | Full vault detail: PPS, supply, allocation, managers |
 | `/api/v1/super-governor-config/{chain_id}` | GET | JWT | Protocol-level constraints for vault creation |
 
 ---
 
 ## Analytics (16 Endpoints)
 
-All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/analytics/`:
+All under `/api/v1/vaults/{chain_id}/{vault_address}/analytics/`:
 
 | Sub-path | Method | Description |
 |----------|--------|-------------|
@@ -50,21 +46,21 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 | `performance/apy?period={p}` | GET | APY time series |
 | `performance/tvl?period={p}` | GET | TVL time series |
 | `risk` | GET | Risk score, concentration, drawdown, Sharpe, volatility |
-| `risk/concentration` | GET | Concentration breakdown (not surfaced in UI yet) |
-| `risk/drawdown` | GET | Drawdown detail (not surfaced in UI yet) |
-| `risk/volatility` | GET | Volatility detail (not surfaced in UI yet) |
+| `risk/concentration` | GET | Concentration breakdown (not surfaced in UI) |
+| `risk/drawdown` | GET | Drawdown detail (not surfaced in UI) |
+| `risk/volatility` | GET | Volatility detail (not surfaced in UI) |
 | `users` | GET | Total/active/new/churned users |
 | `users/retention` | GET | Retention cohorts |
 | `users/top` | GET | Top holders by balance |
-| `users/cohorts` | GET | Cohort analysis (not surfaced in UI yet) |
-| `operations` | GET | Tx count, gas, slippage |
+| `users/cohorts` | GET | Cohort analysis (not surfaced in UI) |
+| `operations` | GET | Transaction count, gas, slippage |
 | `operations/transactions` | GET | Transaction history table |
 | `operations/volume` | GET | Deposit/withdraw volume |
 | `fees?limit=200` | GET | Fee history and skim events |
 | `social` | GET | Social feed for Zap Terminal |
-| `export` | GET | Analytics export (not surfaced in UI yet) |
+| `export` | GET | Analytics export (not surfaced in UI) |
 
-**Note:** `POST /api/v1/analytics/compare` for cross-vault comparison is available but not surfaced in the UI.
+`POST /api/v1/analytics/compare` for cross-vault comparison is available but not surfaced in the UI.
 
 ---
 
@@ -79,9 +75,9 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 | `/api/v1/merkle/configs/{id}` | GET | Single config by ID |
 | `/api/v1/merkle/configs/activate` | PUT | Activate a config version |
 | `/api/v1/merkle/trees` | GET | All trees for vault |
-| `/api/v1/merkle/trees/{id}` | GET | Single tree (not surfaced in UI yet) |
+| `/api/v1/merkle/trees/{id}` | GET | Single tree (not surfaced in UI) |
 | `/api/v1/merkle/proofs` | GET | All leaf proofs |
-| `/api/v1/merkle/proofs/lookup` | GET | Single proof lookup (not surfaced in UI yet) |
+| `/api/v1/merkle/proofs/lookup` | GET | Single proof lookup (not surfaced in UI) |
 | `/api/v1/merkle/generate` | POST | Start async generation (409 = in progress) |
 | `/api/v1/merkle/jobs/{id}` | GET | Poll generation job |
 | `/api/v1/merkle/jobs` | GET | Recent jobs list |
@@ -89,7 +85,7 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 ---
 
-## Registry (13 Endpoints)
+## Registry (18 Endpoints)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -127,7 +123,7 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 ---
 
-## Yield Sources (6 Endpoints)
+## Yield Sources (7 Endpoints)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -141,7 +137,7 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 ---
 
-## Vault Services (7 Endpoints)
+## Vault Services (6 Endpoints)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -164,7 +160,7 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 ---
 
-## Vault Settings (4 Endpoints)
+## Vault Settings (5 Endpoints)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -180,7 +176,7 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/vaults/create/prepare` | POST | Get vault creation calldata |
+| `/api/v1/vaults/create/prepare` | POST | Vault creation calldata |
 | `/api/v1/vaults/create/confirm` | POST | Submit tx hash (409 = duplicate) |
 | `/api/v1/vaults/create/jobs/{id}` | GET | Poll creation job status |
 
@@ -200,21 +196,21 @@ All analytics endpoints are under `/api/v1/vaults/{chain_id}/{vault_address}/ana
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/audit/logs` | GET | Query audit trail (not surfaced in UI yet) |
+| `/api/v1/audit/logs` | GET | Query audit trail (not surfaced in UI) |
 | `/api/v1/audit/logs/{id}` | GET | Single audit log entry |
-| `/api/v1/audit/export` | GET | Export audit logs |
+| `/api/v1/audit/export` | GET | Export audit logs (CSV or JSON via Accept header) |
 
-Audit logs are available for automation — see [Webhooks & Event Streaming](/automation/webhooks).
+Available for automation. See [Webhooks & Event Streaming](/automation/webhooks).
 
 ---
 
-## Undocumented Endpoint: Zap Terminal AI
+## Zap Terminal AI (Undocumented)
 
-The following endpoint is called by the Zap Terminal in the Dashboard but is not included in the Erebor OpenAPI spec:
+Called by the Zap Terminal in the Dashboard but not included in the Erebor OpenAPI spec:
 
 ```
 GET /api/v1/vaults/{vaultAddress}/ai/analysis?chain_id={chain_id}
 Authorization: Bearer <jwt>
 ```
 
-Use with caution — the schema and stability of this endpoint are not officially documented. The Erebor spec will be updated to include this endpoint in a future release.
+Schema and stability not officially documented. The spec will be updated in a future release.
