@@ -3,57 +3,55 @@ title: "Permissions Model"
 description: "Four access levels for SuperVaults: Primary Manager, Secondary Manager, View Only, and Registry Maintainer."
 ---
 
-🌐 Public · ✅ Live
+## Role Tiers
 
-## Role Overview
-
-SuperVaults has four permission tiers. Each tier has a different on-chain vs off-chain footprint:
+SuperVaults enforces four permission tiers with distinct on-chain and off-chain boundaries:
 
 | Role | On-Chain? | Scope | Mutable? |
 |------|-----------|-------|---------|
-| **Primary Manager** | ✅ Yes | Full vault control | Immutable (set at creation) |
-| **Secondary Manager** | ✅ Yes | All operations except vault settings | Removable via on-chain tx |
-| **View Only** | ❌ No | Dashboard read only | Added/removed off-chain |
-| **Registry Maintainer** | ❌ No | Global registry CRUD | DB-level grant |
+| **Primary Manager** | Yes | Full vault control | Immutable (set at creation) |
+| **Secondary Manager** | Yes | All operations except vault settings | Removable via on-chain tx |
+| **View Only** | No | Dashboard read access | Added/removed off-chain |
+| **Registry Maintainer** | No | Global registry CRUD | DB-level grant |
 
 ## Primary Manager
 
-The primary manager is the on-chain vault owner. There is exactly one primary manager per vault.
+The primary manager is the on-chain vault owner. One per vault.
 
-- Set at vault creation time — the wallet that signs `POST /api/v1/vaults/create/prepare`
-- Cannot be changed without governance-level intervention
-- Has exclusive access to vault settings (redeem timelock)
+- Set at vault creation: the wallet that signs `POST /api/v1/vaults/create/prepare`
+- Cannot be changed without governance-level contract interaction
+- Exclusive access to vault settings (redeem timelock) and user management
 - Can add and remove secondary managers
 
 <Warning>
-Guard your primary manager key carefully. It cannot be rotated without on-chain contract interaction. Use a hardware wallet or multi-sig for primary manager operations in production.
+The primary manager key cannot be rotated. Use a hardware wallet or multi-sig for production vaults. If this key is compromised, the attacker gains full vault control.
 </Warning>
 
 ## Secondary Manager
 
-Secondary managers are on-chain delegates. A vault can have multiple secondary managers.
+On-chain delegates with operational authority. A vault supports multiple secondary managers.
 
-- Added via `POST /api/v1/users/secondary-manager/prepare` (prepare pattern — requires wallet signature)
+- Added via `POST /api/v1/users/secondary-manager/prepare` (prepare pattern, requires wallet signature)
 - Removed via `POST /api/v1/users/secondary-manager/remove/prepare`
-- Can perform all vault operations: ladder changes, yield source management, merkle tree operations, strategy control, pause/unpause
-- Cannot modify vault settings (primary manager exclusive)
+- Full operational access: ladders, yield sources, merkle trees, strategies, pause/unpause, view-only user management
+- Cannot modify vault settings or add/remove other secondary managers
 
 ## View Only
 
-View-only access is entirely off-chain (no on-chain transaction required).
+Off-chain read access. No on-chain transaction required.
 
-- Added via `POST /api/v1/users/view-only` (JWT-authenticated POST, no wallet sig)
+- Added via `POST /api/v1/users/view-only`
 - Removed via `DELETE /api/v1/users/view-only/{wallet}`
-- Access grants read-only dashboard visibility
-- No ability to modify vault configuration
+- Read-only dashboard and analytics visibility
+- No write capabilities
 
 ## Registry Maintainer
 
-A separate permission tier for maintaining the global Erebor registries.
+Global permission for managing Erebor registries. Not vault-scoped.
 
-- Grants access to the **Registry** page and **Admin** page
-- Not vault-specific — applies globally
-- Required for: creating/updating/deleting yield sources, oracles, hooks; running data backfills
+- Grants access to the Registry and Admin pages
+- Required for: creating/updating/deleting yield sources, oracles, hooks in the global registry; running data backfills
+- Separate from vault manager roles
 
 ## Permission Matrix
 
@@ -62,44 +60,40 @@ A separate permission tier for maintaining the global Erebor registries.
 | View dashboard | ✅ | ✅ | ✅ | — |
 | Configure ladders | ✅ | ✅ | ❌ | — |
 | Manage yield sources | ✅ | ✅ | ❌ | — |
-| Merkle tree management | ✅ | ✅ | ❌ | — |
-| Strategy creation/edit | ✅ | ✅ | ❌ | — |
+| Merkle tree operations | ✅ | ✅ | ❌ | — |
+| Create/edit strategies | ✅ | ✅ | ❌ | — |
 | Pause vault (on-chain) | ✅ | ✅ | ❌ | — |
 | Pause keeper services | ✅ | ✅ | ❌ | — |
-| Add secondary manager | ✅ | ❌ | ❌ | — |
-| Remove secondary manager | ✅ | ❌ | ❌ | — |
-| Add/remove view-only | ✅ | ✅ | ❌ | — |
-| Vault settings (timelock) | ✅ | ❌ | ❌ | — |
+| Add/remove secondary managers | ✅ | ❌ | ❌ | — |
+| Add/remove view-only users | ✅ | ✅ | ❌ | — |
+| Vault settings (redeem timelock) | ✅ | ❌ | ❌ | — |
 | Registry CRUD | — | — | — | ✅ |
 | Admin backfill | — | — | — | ✅ |
 
 ## AuthGuard Enforcement
 
-The Curator App enforces permissions at the page level via `AuthGuard`:
+The Curator App enforces permissions at both the page level and the API level:
 
-- `requireManager` — checks `superman_is_manager` in localStorage; redirects to login if false
-- `requirePrimaryManager` — checks vault-specific primary role
-- `requireRegistryMaintainer` — checks registry maintainer flag
+**Client-side:** `AuthGuard` checks `superman_is_manager` in localStorage and redirects unauthorized users.
 
-All Erebor API endpoints also enforce permissions server-side. A `403 Forbidden` response means the connected wallet lacks the required role for that operation.
+**Server-side:** All Erebor endpoints validate JWT claims. A `403 Forbidden` response means the connected wallet lacks the required role.
 
-## Managing Users
-
-See [User Management](/ui/user-management) for the step-by-step UI guide, or use the Erebor API directly:
+## Managing Users via API
 
 ```bash
 # List all users for a vault
 GET /api/v1/users?vault_address={address}&chain_id={chainId}
 Authorization: Bearer <jwt>
 
-# Add a secondary manager (returns calldata to sign)
+# Prepare add secondary manager (returns calldata to sign)
 POST /api/v1/users/secondary-manager/prepare
 Authorization: Bearer <jwt>
-Content-Type: application/json
+{ "vault_address": "0x...", "chain_id": 8453, "manager_address": "0xnew..." }
 
-{
-  "vault_address": "0xdef...",
-  "chain_id": 8453,
-  "manager_address": "0xnew..."
-}
+# Add view-only user (off-chain, no gas)
+POST /api/v1/users/view-only
+Authorization: Bearer <jwt>
+{ "vault_address": "0x...", "chain_id": 8453, "wallet_address": "0x...", "display_name": "Risk Monitor" }
 ```
+
+See [User Management](/ui/user-management) for the full UI walkthrough.
