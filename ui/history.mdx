@@ -1,0 +1,86 @@
+---
+title: "Execution History"
+description: "View the execution log of vault deposit and redemption operations processed by keepers."
+---
+
+👤 Manager Required · ✅ Live · Legacy Backend (Superman Python)
+
+## Overview
+
+The History page shows a combined log of all deposit and redemption executions processed by Superman's keeper workers. Entries are sorted by timestamp and refreshed every 15 seconds.
+
+<Info>
+Execution data comes from **Superman Python** (legacy backend). Deposit and redemption executions are fetched from separate endpoints and merged client-side.
+</Info>
+
+## Viewing Executions
+
+Select a chain and vault from the dropdowns. The history table shows:
+
+### Deposit Executions
+
+| Field | Description |
+|-------|-------------|
+| ID | Internal execution ID |
+| Started At | When the keeper started processing |
+| Status | `pending`, `success`, `failed`, `skipped` |
+| Strategy Name | Which strategy triggered the deposit |
+| Deposit Amount | Amount allocated (in underlying asset) |
+| Gas Used | Gas consumed by the transaction |
+| TX Hash | Link to block explorer |
+| Error Message | Present on failure |
+
+### Redemption Executions
+
+| Field | Description |
+|-------|-------------|
+| ID | Internal execution ID |
+| Created At | When the redemption request was created |
+| Status | `pending`, `success`, `failed`, `skipped` |
+| Controllers Count | Number of redemption request controllers fulfilled |
+| Total Shares Fulfilled | Vault shares burned |
+| Total Assets Out | Underlying assets returned to depositors |
+| PPS at Fulfillment | Price-per-share at time of fulfillment |
+| TX Hash | Link to block explorer |
+
+## Filtering
+
+| Filter | Options |
+|--------|---------|
+| Type | All, Deposits only, Redemptions only |
+| Status | All, Pending, Success, Failed, Skipped |
+| Time Range | Last 24h, 7 days, 30 days, All |
+
+Results are paginated. The API supports `page` and `limit` query params.
+
+## Understanding Statuses
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Execution is queued or in-flight |
+| `success` | Completed on-chain successfully |
+| `failed` | Execution attempted but failed (see `error_message`) |
+| `skipped` | Keeper decided not to execute (e.g., below minimum threshold, already sufficient reserve) |
+
+<Note>
+`skipped` is not an error — it means the keeper evaluated the conditions and determined no action was needed. Common reasons: free assets already below reserve threshold, no pending redemption requests.
+</Note>
+
+## Block Explorer Links
+
+TX hashes link to the appropriate block explorer (Etherscan for Ethereum, Basescan for Base). TX hashes from Superman may lack a `0x` prefix — the app normalizes these automatically.
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/fulfill-deposits/executions` | GET | Deposit execution log |
+| `/fulfill-redeems/executions` | GET | Redemption execution log |
+
+### Query Parameters
+
+```
+?chain_id={id}&vault_address={addr}&page={n}&limit={n}
+```
+
+Both endpoints return paginated arrays with a `total` count for pagination controls.

@@ -1,0 +1,153 @@
+---
+title: "Registry Management"
+description: "Manage the global yield source, oracle, and hook registries. Registry Maintainer access required."
+---
+
+Registry Maintainer · ✅ Live
+
+## Overview
+
+The Registry page is an internal-facing tool for managing the global Erebor registries that curators and yield sources depend on. Registry Maintainers can create, update, and delete entries across three tabs.
+
+<Info>
+Registry access requires the `registry_maintainer` permission — a separate tier from vault manager roles. Unlike yield source management (which filters to active entries for a vault), the Registry page shows all entries including inactive ones.
+</Info>
+
+## Tab 1: Yield Sources
+
+The yield source registry contains every supported yield-generating protocol contract, organized by chain.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `chain_id` | integer | Chain where the yield source is deployed |
+| `address` | address | Yield source contract address |
+| `name` | string | Human-readable name (e.g., "Morpho USDC") |
+| `underlying_asset` | address | Asset the yield source accepts |
+| `yield_source_type` | enum | `erc4626` or `pendle_pt` |
+| `is_active` | boolean | Whether curators can whitelist this source |
+
+### Syncing from Providers
+
+Click **Sync from URL** to import yield sources from an external provider:
+
+```bash
+POST /api/v1/registry/yield-sources/sync
+{ "url": "https://api.morpho.org/vaults", "name": "Morpho Import" }
+```
+
+Supported providers: Morpho, Pendle. The sync endpoint parses the provider's format and creates or updates registry entries.
+
+### CRUD
+
+```bash
+# Create
+POST /api/v1/registry/yield-sources
+{ "chain_id": 8453, "address": "0x...", "name": "...", "underlying_asset": "0x...", "yield_source_type": "erc4626" }
+
+# Update
+PUT /api/v1/registry/yield-sources/{chain_id}/{address}
+{ "name": "Updated Name", "is_active": false }
+
+# Delete
+DELETE /api/v1/registry/yield-sources/{id}
+```
+
+## Tab 2: Oracles
+
+Oracles price yield source positions back into the vault's underlying asset.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `chain_id` | integer | Chain where the oracle is deployed |
+| `oracle_address` | address | Oracle contract address |
+| `oracle_id` | string | Identifier used in on-chain config |
+| `oracle_type` | enum | `erc4626`, `pendle_pt`, or `pendle_pt_amortized` |
+| `is_active` | boolean | Whether curators can assign this oracle |
+
+### CRUD
+
+```bash
+# Create
+POST /api/v1/registry/oracles
+{ "chain_id": 8453, "oracle_address": "0x...", "oracle_id": "morpho_usdc_oracle", "oracle_type": "erc4626" }
+
+# Update
+PUT /api/v1/registry/oracles/{chain_id}/{oracle_address}
+{ "is_active": false }
+
+# Delete
+DELETE /api/v1/registry/oracles/{id}
+```
+
+## Tab 3: Hooks
+
+Hooks are on-chain modules that keeper workers call during deposit, withdrawal, and rebalance operations.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Human-readable hook name |
+| `hook_type` | enum | `DEPOSIT`, `WITHDRAWAL`, `REBALANCE` |
+| `addresses` | array | Per-chain `{chain_id, address}` pairs |
+| `inspect_params` | array | Typed parameters each hook invocation requires |
+| `is_active` | boolean | Available in Merkle Tree config? |
+
+### inspectParams
+
+`inspectParams` define the structure of each merkle tree leaf for this hook:
+
+```json
+[
+  { "name": "yield_source", "solidity_type": "address", "ref_type": "yield_source", "param_order": 0 },
+  { "name": "token",        "solidity_type": "address", "ref_type": "token",        "param_order": 1 }
+]
+```
+
+`ref_type` determines what kind of value the Merkle Trees UI presents in the config editor: address picker for yield sources, token picker for ERC-20s, etc.
+
+### CRUD
+
+```bash
+# Create
+POST /api/v1/registry/hooks
+{
+  "name": "MorphoDepositHook",
+  "hook_type": "DEPOSIT",
+  "addresses": [{ "chain_id": 8453, "address": "0x..." }],
+  "inspect_params": [...]
+}
+
+# Update
+PUT /api/v1/registry/hooks/{id}
+{ "is_active": false }
+
+# Delete
+DELETE /api/v1/registry/hooks/{id}
+```
+
+<Note>
+Hooks are global — not chain-specific as entities — but have per-chain addresses. A single hook entry can have addresses on Ethereum and Base.
+</Note>
+
+## All Registry API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/registry/yield-sources` | GET | All yield sources (incl. inactive) |
+| `/api/v1/registry/yield-sources` | POST | Create yield source |
+| `/api/v1/registry/yield-sources/{chain_id}/{address}` | PUT | Update yield source |
+| `/api/v1/registry/yield-sources/{id}` | DELETE | Delete yield source |
+| `/api/v1/registry/yield-sources/sync` | POST | Import from provider URL |
+| `/api/v1/registry/oracles` | GET | All oracles (incl. inactive) |
+| `/api/v1/registry/oracles` | POST | Create oracle |
+| `/api/v1/registry/oracles/{chain_id}/{oracle_address}` | PUT | Update oracle |
+| `/api/v1/registry/oracles/{id}` | DELETE | Delete oracle |
+| `/api/v1/registry/hooks` | GET | All hooks (incl. inactive) |
+| `/api/v1/registry/hooks` | POST | Create hook |
+| `/api/v1/registry/hooks/{id}` | PUT | Update hook |
+| `/api/v1/registry/hooks/{id}` | DELETE | Delete hook |

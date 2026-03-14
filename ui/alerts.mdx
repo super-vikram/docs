@@ -1,0 +1,64 @@
+---
+title: "Alerts"
+description: "Planned alert monitoring for vault health events. Currently a mock/placeholder — not yet wired to a backend."
+---
+
+👤 Manager Required · 🔴 Mock — No Backend
+
+<Warning>
+The Alerts page is currently **entirely mock**. All data shown in the UI is hardcoded placeholder content with simulated delays. There is no backend implementation for alerts. Do not build integrations against this page's data — it will change when the real implementation ships.
+</Warning>
+
+## What Alerts Will Do
+
+When implemented, the Alerts system will provide:
+
+### Alert Monitoring
+
+Real-time monitoring of vault health events with severity classification:
+
+| Severity | Examples |
+|----------|---------|
+| `critical` | PPS staleness exceeded, keeper service down, gas balance critically low |
+| `warning` | High redemption queue depth, service success rate below threshold |
+| `info` | Scheduled maintenance events, parameter changes |
+
+### Alert Lifecycle
+
+```
+active → acknowledged → resolved
+```
+
+- **Active** — event is ongoing, requires attention
+- **Acknowledged** — curator has noted the alert
+- **Resolved** — underlying condition has cleared
+
+### Planned Webhook Integrations
+
+- **Slack** — post to a channel on alert trigger
+- **PagerDuty** — page on-call responder for critical alerts
+- **Discord** — post to a server channel
+
+## Current Workaround
+
+Until the Alerts system is implemented, use the following to monitor vault health:
+
+1. **Audit logs** — `GET /api/v1/audit/logs` (available now in Erebor) as an interim event stream
+2. **Poll services status** — `GET /services/status` for keeper health (available now in Superman)
+3. **Poll vault detail** — `GET /api/v1/vaults/{chain_id}/{vault_address}` every 15s for PPS staleness countdown
+
+See the [Monitoring Automation Guide](/automation/monitoring) for Python and TypeScript examples of building your own alert loop.
+
+## Mock Data Reference
+
+The current mock UI shows these example alert types:
+- `PPS Staleness Warning` — PPS approaching staleness window
+- `High Redemption Queue` — large backlog of pending redemptions
+- `Low Gas Balance` — keeper wallet running low on ETH
+- `Service Restart` — a keeper service restarted unexpectedly
+
+These are hardcoded examples and do not reflect your vault's actual state.
+
+<Info>
+When the real alerts backend ships, this page will be updated with accurate documentation including endpoint references, webhook payload schemas, and integration guides.
+</Info>

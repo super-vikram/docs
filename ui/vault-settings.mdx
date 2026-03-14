@@ -1,0 +1,98 @@
+---
+title: "Vault Settings"
+description: "Configure the redeem timelock — the delay enforced before redemption requests are fulfilled."
+---
+
+🔒 Primary Manager Only · ✅ Live
+
+## Overview
+
+Vault Settings is currently scoped to **Redeem Timelock** configuration. Only the primary manager can modify these settings. Secondary managers receive a `403 Forbidden` if they attempt to access this page.
+
+<Info>
+Timelock operations are served by Erebor. The timelock is stored on-chain and enforced by the vault contract.
+</Info>
+
+## Redeem Timelock
+
+The redeem timelock sets a mandatory delay (in seconds) between when a redemption request is submitted and when it can be fulfilled by keepers.
+
+| Setting | Description |
+|---------|-------------|
+| Timelock duration | Seconds between request submission and fulfillment eligibility |
+| 0 / not configured | No delay — instant redemptions (when liquidity is available) |
+
+### Use Cases
+
+- **Fraud prevention** — gives the primary manager time to intervene if suspicious redemption activity is detected
+- **Liquidity management** — ensures keepers have time to source liquidity from yield sources before fulfillment
+- **Protocol compliance** — some regulatory contexts require redemption delays
+
+## Setting the Timelock
+
+```bash
+PUT /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+Authorization: Bearer <jwt>
+
+{
+  "timelock_seconds": 86400
+}
+```
+
+Returns the updated timelock configuration:
+```json
+{
+  "vault_address": "0x...",
+  "chain_id": 8453,
+  "timelock_seconds": 86400,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-03-01T12:00:00Z"
+}
+```
+
+## Removing the Timelock
+
+```bash
+DELETE /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+Authorization: Bearer <jwt>
+```
+
+After deletion, redemptions execute as soon as liquidity is available (no enforced delay).
+
+## Checking Timelock Status
+
+```bash
+GET /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+Authorization: Bearer <jwt>
+```
+
+Returns `404 Not Found` when no timelock is configured (vault has no delay). Handle this gracefully — 404 is a valid "no timelock" state, not an error.
+
+## Bulk Operations
+
+For managing timelocks across multiple vaults:
+
+```bash
+PUT /api/v1/redeem-timelocks/bulk
+Authorization: Bearer <jwt>
+
+{
+  "timelocks": [
+    { "vault_address": "0x...", "chain_id": 8453, "timelock_seconds": 86400 },
+    { "vault_address": "0x...", "chain_id": 1, "timelock_seconds": 3600 }
+  ]
+}
+```
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | GET | Current timelock (404 = none) |
+| `PUT /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | PUT | Set/update timelock |
+| `DELETE /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | DELETE | Remove timelock |
+| `PUT /api/v1/redeem-timelocks/bulk` | PUT | Bulk set across vaults |
+
+<Warning>
+Setting a timelock on a live vault affects all pending redemption requests going forward. Redemption requests submitted before the timelock change are not retroactively affected.
+</Warning>

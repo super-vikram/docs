@@ -1,0 +1,147 @@
+---
+title: "Create Vault"
+description: "Multi-step vault creation flow: choose chain, asset, configure fees, sign on-chain, and poll for indexing."
+---
+
+👤 Manager Required · ✅ Live
+
+## Overview
+
+The Create Vault flow is a full-screen modal at `/vaults/create`. It walks you through all configuration steps, builds the on-chain transaction via Erebor, and polls for vault indexing after the transaction confirms.
+
+<Note>
+The vault creation form copy and step ordering may change as the product evolves. Screenshots are deferred — refer to the step-by-step description below.
+</Note>
+
+## Creation Steps
+
+### Step 1: Select Chain
+
+Choose the chain where the vault will be deployed:
+- Ethereum Mainnet (chain ID: 1)
+- Base (chain ID: 8453)
+
+The choice is permanent — vaults cannot be migrated between chains.
+
+### Step 2: Choose Underlying Asset
+
+Select the token depositors will supply to the vault (e.g., USDC, WETH, DAI).
+
+- Browse registered token assets from `GET /api/v1/registry/token-assets?chain_id={}&limit=500`
+- If your token is not listed, click **Register Custom Token** to add it via `PUT /api/v1/registry/token-assets`
+
+Custom token registration is idempotent (safe to call if the token already exists).
+
+### Step 3: Set Name & Symbol
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| Vault Name | Full descriptive name | `"USDC Yield Vault"` |
+| Symbol | Ticker for vault shares | `"svUSDC"` |
+
+Symbols should be short and descriptive of the underlying strategy.
+
+### Step 4: Configure Managers
+
+- **Primary Manager** — automatically set to your connected wallet
+- **Secondary Managers** — optionally add additional manager addresses now (can also be added later via User Management)
+
+### Step 5: Configure Fees
+
+| Field | Description |
+|-------|-------------|
+| Performance Fee (bps) | Basis points on yield above the high-water mark |
+| Management Fee (bps) | Annualized basis points on TVL |
+| Fee Recipient | Address that receives the curator's portion of fees |
+
+Protocol-level constraints are fetched from `GET /api/v1/super-governor-config/{chain_id}`. The form enforces these bounds.
+
+### Step 6: Redeem Timelock (Optional)
+
+Set a delay in seconds before redemption requests can be fulfilled. Leave at 0 for instant redemptions. Can be changed later via [Vault Settings](/ui/vault-settings) (primary manager only).
+
+### Step 7: Review SuperGovernor Config
+
+The SuperGovernor configuration is displayed for review:
+- Protocol revenue share (bps)
+- Performance fee protocol share (bps)
+- Minimum staleness interval
+- Upkeep payment requirements
+
+These constraints are protocol-level and not configurable by the curator.
+
+### Step 8: Sign Transaction
+
+Click **Create Vault**. The flow:
+
+1. Calls `POST /api/v1/vaults/create/prepare` → receives calldata `{ to, data, value }`
+2. Presents the transaction to your wallet for signing
+3. On signature, broadcasts the transaction
+4. Calls `POST /api/v1/vaults/create/confirm` with the `tx_hash`
+
+<Warning>
+A `409 Conflict` on the confirm step means a creation job already exists for this transaction hash. The vault may already be indexing — check the job status.
+</Warning>
+
+### Step 9: Poll Job Status
+
+After confirming, Erebor creates a background indexing job. The modal polls until completion:
+
+- Polling uses exponential backoff: **3s → 6s → 12s → 24s → 30s (cap)**
+- Timeout: **3 minutes**
+- If the job completes successfully, the modal shows the new vault address and redirects to Dashboard
+
+```bash
+GET /api/v1/vaults/create/jobs/{job_id}
+```
+
+Job status values:
+| Status | Description |
+|--------|-------------|
+| `pending` | Job queued |
+| `running` | Indexing in progress |
+| `completed` | Vault indexed successfully |
+| `failed` | Indexing failed; check `error_message` |
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/registry/token-assets` | GET | Token list |
+| `/api/v1/registry/token-assets` | PUT | Register custom token |
+| `/api/v1/super-governor-config/{chain_id}` | GET | Protocol constraints |
+| `/api/v1/vaults/create/prepare` | POST | Get creation calldata |
+| `/api/v1/vaults/create/confirm` | POST | Submit tx hash |
+| `/api/v1/vaults/create/jobs/{id}` | GET | Poll job status |
+
+### PrepareCreateVaultRequest
+
+```json
+{
+  "chain_id": 8453,
+  "asset": "0xUSDC...",
+  "name": "USDC Yield Vault",
+  "symbol": "svUSDC",
+  "main_manager": "0xYourWallet...",
+  "secondary_managers": [],
+  "min_update_interval": 3600,
+  "max_staleness": 86400,
+  "fee_config": {
+    "performance_fee_bps": 1000,
+    "management_fee_bps": 200,
+    "recipient": "0xFeeRecipient..."
+  }
+}
+```
+
+### ConfirmCreateVaultRequest
+
+```json
+{
+  "tx_hash": "0xabc...",
+  "chain_id": 8453,
+  "vault_config": {
+    "redeem_timelock_seconds": 0
+  }
+}
+```

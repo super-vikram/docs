@@ -1,0 +1,111 @@
+---
+title: "Services: Worker Health"
+description: "Monitor and control the 7 Celery keeper workers and infrastructure components powering your vault."
+---
+
+👤 Manager Required · ✅ Live · Legacy Backend (Superman Python)
+
+## Overview
+
+The Services page shows the health of all automated workers (keeper services) and underlying infrastructure components. Use it to:
+- Diagnose why vault operations have slowed or stopped
+- Pause or resume individual services
+- Adjust service schedules
+- Verify the Celery scheduler is healthy
+
+<Info>
+Service health data comes from **Superman Python** (legacy backend). All `/health` and `/services/*` endpoints hit the `NEXT_PUBLIC_SUPERMAN_API_URL` base.
+</Info>
+
+## Infrastructure Health
+
+Six infrastructure components, each with `operational`, `degraded`, or `down` status:
+
+| Component | What it checks |
+|-----------|---------------|
+| **API** | Superman Python API availability |
+| **Database** | PostgreSQL connectivity |
+| **Redis** | Redis broker for Celery tasks |
+| **Celery** | Worker process health |
+| **Subgraph** | Subgraph indexer sync status (per chain) |
+| **RPC** | RPC endpoint availability (per chain) |
+
+Polls every 30 seconds (stale at 15s).
+
+**API:** `GET /health`
+
+## Service Health (7 Workers)
+
+| Service | Purpose | Threshold |
+|---------|---------|-----------|
+| `fulfill_deposits` | Allocates free vault assets to yield sources per deposit ladder | <95% = ⚠️ warning |
+| `fulfill_redeems` | Processes pending redemption requests | <95% = ⚠️ warning |
+| `fulfill_claims` | Claims reward tokens from external protocols (Merkl, etc.) | <80% = 🔴 critical |
+| `fulfill_swaps` | Swaps non-underlying tokens to vault's underlying asset | <80% = 🔴 critical |
+| `redemption_queue_engine` | Monitors subgraph for new ERC-7540 redemption requests | <95% = ⚠️ warning |
+| `cleanup_processed_redeems` | Reconciles pending redemptions with on-chain state | <80% = 🔴 critical |
+| `tx_manager` | Broadcasts pending transactions, monitors confirmations, handles reorgs | <95% = ⚠️ warning |
+
+Per-service metrics:
+- **Status** — healthy / warning / critical / paused
+- **Success Rate** — % of executions that completed without error
+- **Last Run** — timestamp of most recent execution
+- **Next Run** — estimated next execution time
+- **Schedule** — current interval in seconds
+- **Avg Execution Time** — mean duration per run
+- **Total Executions** — lifetime execution count
+
+**API:** `GET /services/status`
+
+## Pausing and Resuming Services
+
+To temporarily halt a specific service (e.g., pause deposits while reconfiguring ladders):
+
+```bash
+# Pause
+POST /services/fulfill_deposits/pause
+
+# Resume
+POST /services/fulfill_deposits/resume
+```
+
+Services can also be controlled per-vault via Erebor (`PUT /api/v1/vaults/{chain_id}/{vault}/services/{name}/pause`). See [Pause](/ui/pause) for vault-scoped service controls.
+
+## Updating Schedules
+
+Change how frequently a service runs:
+
+```bash
+PUT /services/schedules/fulfill_deposits
+{ "interval_seconds": 60 }
+```
+
+After updating, the app polls `GET /services/scheduler/status` until the beat confirms the new interval has been loaded. This uses exponential backoff (up to 30s timeout).
+
+<Tip>
+Increasing `fulfill_redeems` frequency during high redemption demand can improve depositor experience. Return to standard intervals during low-activity periods to reduce RPC costs.
+</Tip>
+
+## Scheduler Status
+
+The scheduler (Celery beat) is responsible for triggering services on their configured intervals. The scheduler status endpoint shows:
+- `last_sync_at` — when the beat last loaded the schedule
+- `next_sync_in_seconds` — seconds until next schedule sync
+- `is_leader` — whether this instance is the elected beat leader (multi-instance deploys)
+- `instance_id` — which worker instance is responding
+- `status` — `healthy`, `stale`, or `unknown`
+
+**API:** `GET /services/scheduler/status`
+
+If scheduler status is `stale`, the beat may not be applying schedule changes. Check Celery worker logs.
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Infrastructure component health |
+| `/services/status` | GET | All 7 service statuses |
+| `/services/{name}/pause` | POST | Pause a service |
+| `/services/{name}/resume` | POST | Resume a service |
+| `/services/schedules/{name}` | PUT | Update schedule interval |
+| `/services/scheduler/status` | GET | Beat/scheduler health |
