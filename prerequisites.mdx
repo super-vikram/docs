@@ -1,0 +1,82 @@
+---
+title: "Prerequisites and Access"
+description: "What you need before you can manage a SuperVault: wallet, role, and API access."
+---
+
+🌐 Public · ✅ Live
+
+## Wallet Requirements
+
+SuperVaults uses [Dynamic.xyz](https://dynamic.xyz) for wallet connection and JWT issuance. You need:
+
+- An **EVM-compatible wallet** (MetaMask, Rabby, Frame, or any WalletConnect-compatible wallet)
+- ETH for gas on each supported chain (vault creation, on-chain operations)
+- The wallet address must be assigned a **manager role** on at least one vault before accessing curator features
+
+<Note>
+View-only users are added off-chain (no wallet required for that tier). However, performing any vault operation — including ladder changes — requires at minimum a secondary manager role.
+</Note>
+
+## Supported Chains
+
+| Chain | Chain ID | Status |
+|-------|----------|--------|
+| Ethereum Mainnet | 1 | ✅ Live |
+| Base | 8453 | ✅ Live |
+
+Additional chains are extensible via the SuperVault contract architecture. Contact the Superform team for chain expansion requests.
+
+## App URLs
+
+| Environment | URL |
+|-------------|-----|
+| Curator App | [superman.superform.xyz](https://superman.superform.xyz) |
+
+## API Base URLs
+
+Each backend service has its own base URL. Use these when building automated tooling:
+
+| Service | Base URL |
+|---------|----------|
+| Erebor (Go management API) | `https://erebor.superform.xyz` |
+| Superman (Python legacy) | `https://superman-api.superform.xyz` |
+| Strategy Engine (Go) | `https://strategy.superform.xyz` |
+| OMS (Go DeFiX) | `https://oms.superform.xyz` |
+
+<Note>
+These base URLs reflect the production environment. The Curator App env variables map to these via `NEXT_PUBLIC_EREBOR_API_URL`, `NEXT_PUBLIC_SUPERMAN_API_URL`, `NEXT_PUBLIC_STRATEGY_API_URL`. Confirm current staging URLs with the Superform team before building automation scripts.
+</Note>
+
+## Role Requirements
+
+Most pages and API endpoints require a manager role. Here is what each page requires:
+
+| Page | Minimum Role |
+|------|-------------|
+| Home | 🌐 Public — no auth |
+| Dashboard | 👤 Manager |
+| Strategy | 👤 Manager |
+| Ladder | 👤 Manager |
+| Merkle Trees | 👤 Manager |
+| Yield Sources | 👤 Manager |
+| User Management | 🔒 Primary Manager |
+| Vault Settings | 🔒 Primary Manager |
+| History | 👤 Manager |
+| Services | 👤 Manager |
+| Pause | 👤 Manager |
+| Registry | Registry Maintainer |
+| Admin | Registry Maintainer |
+| Create Vault | 👤 Manager (new vault, you become primary) |
+| Alerts | 👤 Manager |
+
+## Getting Your First Role
+
+If you are onboarding to an existing vault, the primary manager must:
+1. Navigate to **User Management** in the Curator App
+2. Add you as a secondary manager (requires on-chain tx) or view-only user (off-chain)
+
+If you are creating a new vault, you automatically become the primary manager at creation.
+
+<Card title="Authentication" icon="key" href="/authentication">
+  Learn how JWT auth works and how to programmatically authenticate.
+</Card>
