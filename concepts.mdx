@@ -16,7 +16,7 @@ The base vault standard. Every SuperVault is ERC-4626 compliant:
 
 ### ERC-7540 — Async Deposit/Withdraw
 
-An extension of ERC-4626 for asynchronous flows, co-authored by Vik Arun and 0xTimePunk. SuperVaults uses ERC-7540 to support cross-chain operations:
+An extension of ERC-4626 for asynchronous flows. SuperVaults uses ERC-7540 to support cross-chain operations:
 - Depositors submit **request objects** instead of immediately minting shares
 - A keeper (Superman's `fulfill_deposits` / `fulfill_redeems` workers) processes the request and completes the transfer
 - Requests are tracked via an on-chain escrow contract until fulfilled

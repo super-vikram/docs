@@ -1,11 +1,13 @@
 ---
 title: "What is SuperVaults?"
-description: "SuperVaults is a multi-chain ERC-4626 vault system for curating yield strategies across DeFi protocols."
+description: "SuperVaults are permissionless, validator-secured, non-custodial vaults built on ERC-7540 for verifiable, institutional-grade yield on Superform."
 ---
 
 ## Overview
 
-SuperVaults is a tokenized vault infrastructure built on top of the Superform ecosystem. Curators deploy and manage ERC-4626 vaults that automatically allocate depositor funds across multiple yield sources — protocol vaults, Pendle Principal Tokens, lending markets, and more.
+SuperVaults are permissionless, validator-secured, non-custodial vaults built on top of Superform Core. Every vault runs onchain with verifiable yield: validator-signed price-per-share, double-Merkle hook allowlisting, and 7-day timelocks on configuration changes. No manager keys. No opaque NAV updates.
+
+Curators deploy and manage SuperVaults to allocate depositor funds across yield sources — protocol vaults, Pendle Principal Tokens, lending markets — while the infrastructure enforces what they can and can't do at every layer.
 
 <Info>
 SuperVaults is live on **Ethereum (chain ID 1)** and **Base (chain ID 8453)** with $130M+ in deposits across the broader Superform ecosystem and 140,000+ users.
@@ -42,16 +44,16 @@ Curator UI (superman.superform.xyz)
 
 | Contract | Purpose |
 |----------|---------|
-| **SuperVault** | ERC-4626 tokenized vault. Holds depositor assets, delegates allocation. |
+| **SuperVault** | ERC-7540 tokenized vault. Holds depositor assets, delegates allocation. |
 | **SuperVaultStrategy** | Manages yield source whitelist (merkle root), keeper authorization. |
 | **Escrow** | Holds pending cross-chain redemption requests (ERC-7540). |
 | **Oracle** | Price-per-share calculation and staleness tracking. |
 
 ## Key Standards
 
-**ERC-4626** — The vault tokenization standard. Every SuperVault is ERC-4626 compliant, meaning deposits mint vault shares and redemptions burn them at the current price-per-share (PPS).
+**ERC-7540** — The primary vault standard for SuperVaults. Extends ERC-4626 with asynchronous deposit and withdrawal flows, enabling cross-chain operations. Depositors submit request objects rather than immediately minting shares; keeper workers process and fulfill them via an on-chain escrow contract.
 
-**ERC-7540** — Async deposit/withdraw for cross-chain flows. Co-authored by Vik Arun and 0xTimePunk. Enables Superform's cross-chain deposit infrastructure to queue requests and fulfill them asynchronously.
+**ERC-4626** — The base vault tokenization compatibility layer. All SuperVaults are ERC-4626 compatible: deposits mint vault shares and redemptions burn them at the current price-per-share (PPS).
 
 ## What Curators Do
 
