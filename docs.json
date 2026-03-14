@@ -31,22 +31,42 @@
             ]
           },
           {
-            "group": "UI Guide",
+            "group": "Getting Started",
             "pages": [
               "ui/home",
+              "ui/create-vault"
+            ]
+          },
+          {
+            "group": "Vault Operations",
+            "pages": [
               "ui/dashboard",
-              "ui/strategy",
               "ui/ladder",
-              "ui/merkle-trees",
-              "ui/yield-sources",
-              "ui/user-management",
-              "ui/vault-settings",
+              "ui/strategy",
               "ui/history",
-              "ui/services",
-              "ui/pause",
+              "ui/services"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "ui/yield-sources",
+              "ui/merkle-trees",
+              "ui/vault-settings",
+              "ui/user-management"
+            ]
+          },
+          {
+            "group": "Registry & Admin",
+            "pages": [
               "ui/registry",
-              "ui/admin",
-              "ui/create-vault",
+              "ui/admin"
+            ]
+          },
+          {
+            "group": "Emergency & Alerts",
+            "pages": [
+              "ui/pause",
               "ui/alerts"
             ]
           }
