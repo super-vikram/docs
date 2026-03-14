@@ -1,0 +1,250 @@
+---
+title: "Building an Automated Curator"
+description: "Programmatic auth, safety patterns, and an end-to-end example for automated vault management."
+---
+
+🌐 Public · ✅ Live
+
+## Why Automate?
+
+Manual vault management is limited by human response time. Automated curators can:
+
+- Monitor vault state 24/7 and respond to market changes in seconds
+- Rebalance deposit ladders based on real-time APY rankings
+- Pause services instantly when anomalies are detected
+- Execute consistent rule-based strategies without emotional bias
+
+SuperVaults supports full programmatic control via its four API backends.
+
+## Authentication for Automation
+
+The Curator App uses Dynamic.xyz for browser-based wallet auth. For automation scripts, you need to generate a JWT without the browser:
+
+1. Sign an EIP-712 auth message with your wallet's private key
+2. Submit the signature to Dynamic.xyz to receive a JWT
+3. Use the JWT as `Authorization: Bearer <jwt>` on all requests
+
+Once you have a JWT, verify it against Erebor:
+
+<CodeGroup>
+
+```python Python
+import requests
+
+EREBOR_URL = "https://erebor.superform.xyz"
+JWT = "<your-jwt>"
+
+headers = {"Authorization": f"Bearer {JWT}"}
+
+# Confirm auth and get vault roles
+resp = requests.get(f"{EREBOR_URL}/api/v1/auth/me", headers=headers)
+resp.raise_for_status()
+user = resp.json()
+
+print(f"Authenticated as: {user['wallet_address']}")
+print(f"Vaults: {[v['vault_address'] for v in user['vaults']]}")
+```
+
+```typescript TypeScript
+const EREBOR_URL = "https://erebor.superform.xyz";
+const JWT = process.env.SUPERMAN_JWT!;
+
+const headers = { Authorization: `Bearer ${JWT}` };
+
+const resp = await fetch(`${EREBOR_URL}/api/v1/auth/me`, { headers });
+if (!resp.ok) throw new Error(`Auth failed: ${resp.status}`);
+
+const user = await resp.json();
+console.log(`Authenticated as: ${user.wallet_address}`);
+console.log(`Vaults: ${user.vaults.map((v: any) => v.vault_address)}`);
+```
+
+</CodeGroup>
+
+## Safety Principles
+
+<Warning>
+Automated scripts have full manager-level access. A bug can modify live vault configuration. Follow these principles before deploying any automation.
+</Warning>
+
+### Test on Base First
+
+Base (chain ID: 8453) has lower gas costs and faster confirmation times. Run all automation scripts against Base vaults before Ethereum mainnet.
+
+### Rate Limit Your Polling
+
+| Endpoint | Recommended Poll Interval |
+|----------|--------------------------|
+| Vault state | 15 seconds |
+| Analytics overview | 60 seconds |
+| Service health | 30 seconds |
+| Ladder state | On-demand (after changes) |
+
+### Implement Circuit Breakers
+
+Stop automation if consecutive API errors are detected:
+
+```python
+MAX_CONSECUTIVE_ERRORS = 5
+consecutive_errors = 0
+
+def safe_api_call(fn):
+    global consecutive_errors
+    try:
+        result = fn()
+        consecutive_errors = 0
+        return result
+    except Exception as e:
+        consecutive_errors += 1
+        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+            alert_and_stop(f"Circuit breaker: {consecutive_errors} consecutive errors")
+        raise
+```
+
+### Never Modify Production Without Validation
+
+Before pushing ladder changes:
+1. Fetch current state
+2. Validate proposed change is meaningful (e.g., order actually changed)
+3. Check that yield sources in new order are all still whitelisted
+4. Apply change
+5. Re-fetch and verify change was applied
+
+## End-to-End Example: Automated Deposit Rebalancing
+
+This example fetches yield source APYs, sorts them, and updates the deposit ladder to match.
+
+<CodeGroup>
+
+```python Python
+import requests
+import time
+
+EREBOR_URL = "https://erebor.superform.xyz"
+SUPERMAN_URL = "https://superman-api.superform.xyz"
+JWT = "<your-jwt>"
+
+CHAIN_ID = 8453
+VAULT_ADDRESS = "0xYourVault..."
+
+headers = {"Authorization": f"Bearer {JWT}"}
+
+def get_vault_analytics():
+    resp = requests.get(
+        f"{EREBOR_URL}/api/v1/vaults/{CHAIN_ID}/{VAULT_ADDRESS}/analytics/overview",
+        headers=headers
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+def get_ladder_state():
+    resp = requests.get(f"{SUPERMAN_URL}/ladder/ladders", headers=headers)
+    resp.raise_for_status()
+    ladders = resp.json()
+    # Filter to our vault
+    return next((l for l in ladders if l["vault_address"].lower() == VAULT_ADDRESS.lower()), None)
+
+def update_deposit_priority(ordered_addresses: list[str]):
+    resp = requests.put(
+        f"{SUPERMAN_URL}/ladder/{CHAIN_ID}/{VAULT_ADDRESS}/deposit-priority",
+        headers=headers,
+        json={"deposit_priority": [{"address": a} for a in ordered_addresses]}
+    )
+    resp.raise_for_status()
+    print(f"Updated deposit priority: {ordered_addresses}")
+
+def run_rebalance():
+    # 1. Get current ladder
+    ladder = get_ladder_state()
+    if not ladder:
+        print("Vault not found in ladder state")
+        return
+
+    current_order = [item["address"] for item in ladder["deposit_priority"]]
+    print(f"Current order: {current_order}")
+
+    # 2. Fetch APY for each yield source
+    # (This assumes you have APY data per yield source — implement per your data source)
+    # ranked_by_apy = sort_yield_sources_by_apy(current_order)
+
+    # 3. If order has changed, update
+    # if ranked_by_apy != current_order:
+    #     update_deposit_priority(ranked_by_apy)
+
+if __name__ == "__main__":
+    while True:
+        try:
+            run_rebalance()
+        except Exception as e:
+            print(f"Error: {e}")
+        time.sleep(300)  # Run every 5 minutes
+```
+
+```typescript TypeScript
+const EREBOR_URL = "https://erebor.superform.xyz";
+const SUPERMAN_URL = "https://superman-api.superform.xyz";
+const JWT = process.env.SUPERMAN_JWT!;
+const CHAIN_ID = 8453;
+const VAULT_ADDRESS = "0xYourVault...";
+
+const headers = { Authorization: `Bearer ${JWT}` };
+
+async function getLadderState() {
+  const resp = await fetch(`${SUPERMAN_URL}/ladder/ladders`, { headers });
+  if (!resp.ok) throw new Error(`Ladder fetch failed: ${resp.status}`);
+  const ladders = await resp.json();
+  return ladders.find((l: any) =>
+    l.vault_address.toLowerCase() === VAULT_ADDRESS.toLowerCase()
+  );
+}
+
+async function updateDepositPriority(orderedAddresses: string[]) {
+  const resp = await fetch(
+    `${SUPERMAN_URL}/ladder/${CHAIN_ID}/${VAULT_ADDRESS}/deposit-priority`,
+    {
+      method: "PUT",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deposit_priority: orderedAddresses.map(a => ({ address: a }))
+      })
+    }
+  );
+  if (!resp.ok) throw new Error(`Ladder update failed: ${resp.status}`);
+  console.log(`Updated deposit priority: ${orderedAddresses}`);
+}
+
+async function runRebalance() {
+  const ladder = await getLadderState();
+  if (!ladder) { console.log("Vault not found"); return; }
+
+  const currentOrder = ladder.deposit_priority.map((item: any) => item.address);
+  console.log("Current order:", currentOrder);
+
+  // Implement your rebalancing logic here
+  // const newOrder = sortByApy(currentOrder);
+  // if (JSON.stringify(newOrder) !== JSON.stringify(currentOrder)) {
+  //   await updateDepositPriority(newOrder);
+  // }
+}
+
+setInterval(runRebalance, 300_000);
+```
+
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Monitoring" icon="chart-line" href="/automation/monitoring">
+    Poll vault state and build alert conditions.
+  </Card>
+  <Card title="Ladder Automation" icon="list-ol" href="/automation/ladders">
+    Full reference for programmatic ladder updates.
+  </Card>
+  <Card title="Service Health" icon="heart-pulse" href="/automation/services">
+    Monitor and control keeper services via API.
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/automation/webhooks">
+    Audit logs as interim event stream.
+  </Card>
+</CardGroup>
