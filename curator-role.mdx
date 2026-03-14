@@ -1,98 +1,92 @@
 ---
 title: "The Curator Role"
-description: "What curators do, how they earn, and the full vault lifecycle they own."
+description: "What curators control, what the protocol enforces, and the trust boundaries between them."
 ---
 
-🌐 Public · ✅ Live
+A curator manages a SuperVault's yield strategy: which protocols receive capital, in what order, under what conditions, and with what risk parameters. The curator does not hold depositor funds. The vault contract does.
 
-## What is a Curator?
+This separation is the foundation of the SuperVault security model. Curators have broad operational authority within boundaries the protocol enforces on-chain.
 
-Curators deploy and manage institutional-grade yield vaults on SuperVaults infrastructure. As a curator, you own the strategy: which yield sources to use, how to prioritize allocation and redemption, what automation rules to run, and how to keep the vault healthy. Builders focus on strategy. Superform handles security, execution, validation, and distribution.
+## What Curators Control
 
-The SuperVaults infrastructure — validator attestation, Merkle-enforced hook authorization, timelocks, Guardian oversight — enforces the safety guarantees so you can focus on performance.
+| Domain | Capability |
+|--------|-----------|
+| **Yield source selection** | Whitelist and remove ERC-4626 vaults and Pendle PT positions |
+| **Oracle assignment** | Pair each yield source with a pricing oracle |
+| **Allocation priority** | Order deposit and redemption ladders to direct keeper behavior |
+| **Reserve ratio** | Set the percentage of assets held liquid in the vault |
+| **Strategy rules** | Define automated rebalancing, deposit, and withdrawal strategies with the Strategy Engine |
+| **Merkle authorization** | Specify exactly which hooks and parameters keepers can execute |
+| **Fee configuration** | Set performance and management fees at vault creation |
+| **Redeem timelock** | Configure mandatory delay between redemption request and fulfillment |
+| **Service controls** | Pause, resume, and adjust frequency of individual keeper workers |
+| **Emergency pause** | Halt all vault operations with an on-chain transaction |
+| **Access management** | Add secondary managers and view-only users |
 
-Curators typically include:
-- **DeFi protocols** deploying treasury yield strategies
-- **Quant funds** running systematic allocation strategies
-- **Sophisticated yield managers** offering structured products to depositors
+## What the Protocol Enforces
 
-## Responsibilities
+Curators operate within constraints set by the SuperGovernor contract and the vault architecture:
 
-### Strategy & Allocation
-- Configure deposit priority ladders — which yield sources receive funds first
-- Configure redemption priority ladders — which yield sources are unwound first
-- Set reserve percentages (assets held in vault vs deployed)
-- Define claim reward and swap floor thresholds
+| Constraint | Mechanism |
+|-----------|-----------|
+| **Merkle-verified execution** | Keepers can only call hooks with parameter combinations that match a leaf in the on-chain merkle tree |
+| **Timelocked root updates** | New merkle roots must be proposed and wait for a timelock period before they can be executed on-chain |
+| **Fee bounds** | Maximum performance and management fee rates are set by SuperGovernor and cannot be exceeded |
+| **PPS staleness enforcement** | Price-per-share must be updated within a configurable window or vault operations are blocked |
+| **$UP upkeep requirement** | Vaults must maintain $UP token balance to cover protocol upkeep costs |
+| **High-water mark fees** | Performance fees accrue only on gains above the all-time high PPS |
+| **Protocol revenue share** | A fixed percentage of fees flows to the Superform protocol |
 
-### Yield Source Management
-- Whitelist yield sources (ERC-4626 vaults, Pendle PTs) via on-chain transactions
-- Assign price oracles to each yield source
-- Monitor allocation health and rebalance as needed
+## Trust Model
 
-### Merkle Tree Authorization
-- Maintain hook configurations (which on-chain hooks are authorized for which actions)
-- Generate and sync merkle roots to chain
-- Manage timelock delays for root updates
+SuperVaults operate on a **trust-minimized curator** model:
 
-### Automation
-- Define Strategy Engine rules (indicator-based, rule trees)
-- Trigger DeFiX intents for deposit, withdrawal, and rebalance actions
-- Monitor strategy execution and intent history
+**Depositors trust the curator to:**
+- Select sound yield sources with appropriate risk profiles
+- Maintain adequate liquidity reserves for redemptions
+- Monitor vault health and respond to adverse conditions
+- Keep merkle authorization current as the strategy evolves
 
-### Operations
-- Monitor 7 Celery worker services (deposits, redemptions, claims, swaps, queue, cleanup, tx manager)
-- Respond to service degradation (pause/resume individual workers)
-- Review execution history for deposit and redemption operations
+**Depositors do NOT need to trust the curator to:**
+- Custody their funds (held by the vault contract)
+- Execute transactions honestly (merkle-verified on-chain)
+- Update PPS accurately (oracle-enforced)
+- Respect fee limits (SuperGovernor-enforced)
 
-### Access Control
-- Manage secondary managers (on-chain delegation)
-- Grant/revoke view-only access (off-chain)
-- Configure vault settings (redeem timelock)
+## Curator Tiers
 
-## Revenue Model
+| Role | On-chain? | Capabilities |
+|------|-----------|-------------|
+| **Primary Manager** | Yes | Full vault control. Set at creation, immutable without governance action. |
+| **Secondary Manager** | Yes | All operational capabilities except vault settings (redeem timelock) and user management. Added/removed via on-chain transaction. |
+| **View Only** | No | Read access to Dashboard and analytics. No write operations. Added/removed off-chain via Erebor API. |
 
-Curators earn fees from two sources:
+<Warning>
+The primary manager key is the root of trust for the vault. If compromised, an attacker could modify yield sources, update merkle authorization, and pause operations. Use hardware wallets and consider multi-sig for production vaults.
+</Warning>
 
-| Fee Type | Description | Configurable |
-|----------|-------------|--------------|
-| **Performance Fee** | Basis points applied to yield above high-water mark | Yes (bps) |
-| **Management Fee** | Annualized basis points on TVL | Yes (bps) |
+## Operational Responsibilities
 
-Both fees are split between the curator (as recipient) and the Superform protocol (via SuperGovernor). The revenue share split is defined in the SuperGovernor config per chain.
+Running a SuperVault is an active role. Curators are responsible for:
+
+**Continuous monitoring:**
+- PPS staleness countdown (vault operations blocked if PPS expires)
+- Keeper service health (7 workers must stay operational)
+- Redemption queue depth (pending requests need timely fulfillment)
+- Yield source performance (APY drift may warrant ladder reordering)
+
+**Periodic maintenance:**
+- Merkle tree updates when adding or removing yield sources or hooks
+- Ladder rebalancing as market conditions shift
+- Strategy rule tuning based on execution history and intent outcomes
+- Fee parameter review against competitive benchmarks
+
+**Incident response:**
+- Emergency pause if a yield source is compromised
+- Service-level pause for targeted worker issues
+- Reserve adjustment during high redemption demand
+- Post-mortem analysis via execution history and audit logs
 
 <Note>
-Fee configuration happens at vault creation time. The `SuperGovernorConfig` defines protocol-level constraints including minimum staleness, upkeep payment requirements, and protocol revenue share.
+The [Automation section](/automation/overview) covers how to build programmatic curators that handle monitoring, rebalancing, and alerting without manual intervention.
 </Note>
-
-## Vault Lifecycle
-
-```
-CREATE    →    CONFIGURE    →    ENABLE    →    OPERATE    →    (PAUSE / SHUTDOWN)
-```
-
-| Phase | Actions |
-|-------|---------|
-| **Create** | Deploy vault (choose chain, asset, name, fees). Sign on-chain tx. |
-| **Configure** | Whitelist yield sources. Build hook config. Generate merkle tree. Sync root to chain. |
-| **Enable** | Toggle vault enabled in Superman. Verify services are healthy. |
-| **Operate** | Monitor PPS, TVL, keeper health. Adjust ladders. Run strategies. |
-| **Pause** | Emergency on-chain pause via Erebor prepare pattern. Or pause individual keepers. |
-
-## Permission Levels
-
-| Role | On-Chain? | Capabilities |
-|------|-----------|--------------|
-| **Primary Manager** | ✅ Yes | Full control. Set at vault creation. Immutable. |
-| **Secondary Manager** | ✅ Yes | All vault operations except vault settings. Added via on-chain tx. |
-| **View Only** | ❌ No | Dashboard read access only. Off-chain DB record. |
-| **Registry Maintainer** | ❌ No | Global registry CRUD (yield sources, oracles, hooks). Separate permission. |
-
-<Tip>
-Use secondary managers for team operations and automation accounts. Reserve the primary manager key for governance-level decisions only.
-</Tip>
-
-## Getting Started
-
-<Card title="Quickstart: Your First Vault" icon="rocket" href="/quickstart">
-  Step-by-step guide to creating and configuring your first SuperVault in 15 minutes.
-</Card>

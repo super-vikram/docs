@@ -1,83 +1,76 @@
 ---
-title: "What is SuperVaults?"
-description: "SuperVaults are permissionless, validator-secured, non-custodial vaults built on ERC-7540 for verifiable, institutional-grade yield on Superform."
+title: "SuperVaults Curator Documentation"
+description: "Technical reference for SuperVault curators: vault operations, strategy automation, API integration, and risk management."
 ---
 
-## Overview
+SuperVaults are ERC-7540 tokenized vaults that give curators full programmatic control over yield strategy execution. Curators set allocation priorities, define automated rebalancing rules, manage on-chain permissions through merkle-verified hook authorization, and monitor vault health across a 127-endpoint API surface spanning four backend services.
 
-SuperVaults are permissionless, validator-secured, non-custodial vaults built on top of Superform Core. Every vault runs onchain with verifiable yield: validator-signed price-per-share, double-Merkle hook allowlisting, and 7-day timelocks on configuration changes. No manager keys. No opaque NAV updates.
+This documentation covers everything a curator needs to operate a SuperVault: from initial vault creation and yield source whitelisting through strategy automation via the DeFiX v0.1 intent protocol.
 
-Curators deploy and manage SuperVaults to execute yield strategies across protocol vaults, Pendle Principal Tokens, and lending markets — while the infrastructure enforces what they can and can't do at every layer.
+## Architecture at a Glance
 
-<Info>
-SuperVaults is live on **Ethereum (chain ID 1)** and **Base (chain ID 8453)** with $130M+ in deposits across the broader Superform ecosystem and 180,000+ lifetime depositors. Available across 10+ chains via Superform's cross-chain infrastructure.
-</Info>
+SuperVaults split responsibilities across four backend services:
 
-## Architecture
+| Service | Role | Language |
+|---------|------|----------|
+| **Erebor** | Vault management, analytics, merkle authorization, registry | Go |
+| **Superman** | Keeper worker orchestration, ladder config, execution history | Python |
+| **Strategy Engine** | Rule-based strategy evaluation, intent dispatch | Go |
+| **OMS** | DeFiX v0.1 intent execution, on-chain transaction management | Go |
 
-SuperVaults is composed of four backend services coordinating around on-chain contracts:
+Every on-chain write operation follows a **prepare pattern**: the backend constructs EVM calldata, your wallet signs the transaction, and the backend confirms the result. Private keys never touch the server.
 
-```
-Curator UI (superman.superform.xyz)
-       │
-       ├──► Erebor API (Go)           – Vault management, auth, analytics, merkle, registry
-       ├──► Superman Python (legacy)  – Ladder config, execution history, keeper health
-       ├──► Strategy Engine (Go)      – Automated rule-based strategies, DeFiX intent dispatch
-       └──► OMS (Go)                  – DeFiX v0.1 intent execution, on-chain settlement
-                 │
-       ┌─────────┴──────────┐
-  On-chain Contracts        Indexers / Subgraph
-  (SuperVault, Strategy,    (historical data,
-   Escrow, Oracle)          events)
-```
-
-### Four Backends
-
-| Service | Language | Role |
-|---------|----------|------|
-| **Erebor** | Go | Primary management API. Vault CRUD, auth, analytics (16 endpoints), merkle tree management, registry, audit logs. |
-| **Superman** | Python | Legacy operations backend. Keeper ladder config, execution history, Celery worker health. |
-| **Strategy Engine** | Go | Rule-based strategy automation. Translates curator-defined rules into DeFiX intents. |
-| **OMS** | Go | DeFiX v0.1 protocol implementation. Receives intents from Strategy Engine, executes on-chain. |
-
-### On-Chain Components
-
-| Contract | Purpose |
-|----------|---------|
-| **SuperVault** | ERC-7540 tokenized vault. Holds depositor assets, delegates allocation. |
-| **SuperVaultStrategy** | Manages yield source whitelist (merkle root), keeper authorization. |
-| **Escrow** | Holds pending cross-chain redemption requests (ERC-7540). |
-| **Oracle** | Price-per-share calculation and staleness tracking. |
-
-## Key Standards
-
-**ERC-7540** — The primary vault standard for SuperVaults. Extends ERC-4626 with asynchronous deposit and withdrawal flows, enabling cross-chain operations. Depositors submit request objects rather than immediately minting shares; keeper workers process and fulfill them via an on-chain escrow contract.
-
-**ERC-4626** — The base vault tokenization compatibility layer. All SuperVaults are ERC-4626 compatible: deposits mint vault shares and redemptions burn them at the current price-per-share (PPS).
-
-## What Curators Do
-
-Curators are the operators of SuperVaults. As a curator you:
-
-- Deploy vaults and configure underlying assets
-- Whitelist yield sources and assign price oracles
-- Configure ladder ordering (deposit priority, redemption priority, reserves)
-- Manage merkle tree authorization for keeper hooks
-- Automate rebalancing via the Strategy Engine
-- Monitor vault health and execution history
-- Manage access for secondary managers and view-only users
+## Key Capabilities
 
 <CardGroup cols={2}>
-  <Card title="The Curator Role" icon="user-tie" href="/curator-role">
-    Understand responsibilities, revenue model, and lifecycle.
+  <Card title="Strategy Automation" icon="robot" href="/ui/strategy">
+    Define rule-based strategies with indicator expressions, conviction thresholds, and configurable tick intervals. The Strategy Engine evaluates conditions and dispatches DeFiX intents automatically.
   </Card>
-  <Card title="Key Concepts" icon="book" href="/concepts">
-    PPS, ladders, merkle trees, yield sources, DeFiX intents.
+  <Card title="Merkle Authorization" icon="shield-halved" href="/ui/merkle-trees">
+    Whitelist exactly which hooks can be called with which parameters. Each authorized combination becomes a merkle tree leaf verified on-chain before execution.
   </Card>
-  <Card title="Prerequisites" icon="list-check" href="/prerequisites">
-    Wallet setup, supported chains, API base URLs.
+  <Card title="Ladder Configuration" icon="list-ol" href="/ui/ladder">
+    Set deposit priority, redemption priority, reserve ratios, reward claim thresholds, and swap floors. Seven Celery workers execute against your ladder config continuously.
   </Card>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Create your first vault in 15 minutes.
+  <Card title="Full API Access" icon="code" href="/api/overview">
+    127 endpoints across four services. Programmatic control over every operation the UI exposes, plus analytics, audit logs, and admin utilities.
   </Card>
 </CardGroup>
+
+## Documentation Structure
+
+<Steps>
+  <Step title="Understand the Curator Role">
+    What curators control, what the protocol enforces, and the security boundaries between them. [Read more →](/curator-role)
+  </Step>
+  <Step title="Core Concepts">
+    ERC-7540 mechanics, the hook system, merkle authorization, and the DeFiX intent protocol. [Read more →](/concepts)
+  </Step>
+  <Step title="Get Started">
+    Prerequisites, authentication, permissions, and a quickstart walkthrough. [Read more →](/prerequisites)
+  </Step>
+  <Step title="Operate">
+    UI guide for every page in the Curator App, from Dashboard to Strategy Canvas. [Read more →](/ui/home)
+  </Step>
+  <Step title="Integrate">
+    API reference for all four backends with endpoint tables, request shapes, and error codes. [Read more →](/api/overview)
+  </Step>
+  <Step title="Automate">
+    Build programmatic curators: monitoring loops, ladder automation, service health alerting, and audit log streaming. [Read more →](/automation/overview)
+  </Step>
+</Steps>
+
+## Security Model
+
+SuperVaults enforce security at multiple layers:
+
+- **On-chain merkle verification** ensures keepers can only execute pre-authorized hook + parameter combinations
+- **ERC-7540 async redemption** separates request from fulfillment, giving curators time to source liquidity
+- **Timelocked merkle root updates** prevent instant unauthorized changes to keeper permissions
+- **Role-based access control** across primary manager, secondary manager, and view-only tiers
+- **Emergency pause** halts all vault operations with a single on-chain transaction
+- **Audited contracts** reviewed by Spearbit, Cantina, and yAudit across multiple engagements
+
+<Note>
+This documentation targets curators and integrators. For depositor-facing information, see the [Superform App](https://app.superform.xyz). For protocol-level specifications, see the [Superform Docs](https://docs.superform.xyz).
+</Note>
