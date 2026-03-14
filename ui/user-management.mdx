@@ -3,51 +3,35 @@ title: "User Management"
 description: "Add and remove secondary managers and view-only users for your vault."
 ---
 
-🔒 Primary Manager Only · ✅ Live
-
 ![SuperVaults User Management — primary, secondary, and view-only manager access control](/images/screenshots/user-management.jpg)
 
-## Overview
+This page controls vault access. Three tiers are managed here: primary manager (display only), secondary managers (on-chain delegates), and view-only users (off-chain read access). Primary manager access required.
 
-The User Management page controls who has access to your vault. Three tiers are managed here:
-
-- **Primary Manager** — read-only display (set at vault creation, immutable)
-- **Secondary Managers** — on-chain delegates; add/remove via wallet transactions
-- **View Only** — off-chain read access; add/remove without gas
-
-<Info>
-The full manager list is fetched from `GET /api/v1/users?vault_address={}&chain_id={}&limit=100`. Returns all roles grouped by user.
-</Info>
+The full manager list is fetched from `GET /api/v1/users?vault_address={}&chain_id={}&limit=100`.
 
 ## Tab 1: Primary Manager
 
-Shows the primary manager's wallet address and display name. This is the on-chain vault owner set at creation.
-
-- **Cannot be changed** without governance-level contract interaction
-- All other management actions (user management, yield sources, etc.) can be delegated to secondary managers
-- Protect this key — it is the root of trust for the vault
+Displays the primary manager's wallet address and display name. Set at vault creation, immutable without governance-level contract interaction. This key is the root of trust for the vault.
 
 ## Tab 2: Secondary Managers
 
-Secondary managers are on-chain delegates. Multiple secondary managers are supported.
+On-chain delegates with full operational access (except vault settings and user management).
 
-### Adding a Secondary Manager
+### Adding
 
 1. Click **Add Secondary Manager**
-2. Enter the wallet address
-3. Click **Prepare** — Erebor calls `POST /api/v1/users/secondary-manager/prepare` and returns calldata
+2. Enter wallet address
+3. Click **Prepare** — `POST /api/v1/users/secondary-manager/prepare` → calldata
 4. Sign the on-chain transaction
-5. The new secondary manager appears after on-chain confirmation
 
-### Removing a Secondary Manager
+### Removing
 
-1. Click **Remove** next to the manager
-2. Click **Prepare** — Erebor calls `POST /api/v1/users/secondary-manager/remove/prepare`
-3. Sign the on-chain transaction
+1. Click **Remove** — `POST /api/v1/users/secondary-manager/remove/prepare` → calldata
+2. Sign the on-chain transaction
 
 ### Updating Display Names
 
-Click the pencil icon next to any user to update their display name. This is an off-chain operation (no gas required):
+Click the pencil icon to update any user's display name (off-chain, no gas):
 
 ```bash
 PATCH /api/v1/users/{wallet_address}/display-name
@@ -56,38 +40,29 @@ PATCH /api/v1/users/{wallet_address}/display-name
 
 ## Tab 3: View Only
 
-View-only users can see the Dashboard but cannot make any changes. No on-chain transaction required.
-
-### Adding a View-Only User
+Read-only dashboard access. No on-chain transaction required.
 
 ```bash
+# Add
 POST /api/v1/users/view-only
-{
-  "vault_address": "0x...",
-  "chain_id": 8453,
-  "wallet_address": "0xViewer...",
-  "display_name": "Risk Monitor"
-}
-```
+{ "vault_address": "0x...", "chain_id": 8453, "wallet_address": "0x...", "display_name": "Risk Monitor" }
 
-### Removing a View-Only User
-
-```bash
+# Remove
 DELETE /api/v1/users/view-only/{wallet_address}?vault_address={}&chain_id={}
 ```
 
 ## API Reference
 
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/v1/users` | GET | JWT | All users for vault |
-| `/api/v1/users/secondary-manager/prepare` | POST | JWT | Prepare add tx (returns calldata) |
-| `/api/v1/users/secondary-manager/remove/prepare` | POST | JWT | Prepare remove tx |
-| `/api/v1/users/view-only` | POST | JWT | Add view-only (off-chain) |
-| `/api/v1/users/view-only/{wallet}` | DELETE | JWT | Remove view-only (off-chain) |
-| `/api/v1/users/{wallet}/display-name` | PATCH | JWT | Update display name |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/users` | GET | All users for vault |
+| `/api/v1/users/secondary-manager/prepare` | POST | Prepare add tx |
+| `/api/v1/users/secondary-manager/remove/prepare` | POST | Prepare remove tx |
+| `/api/v1/users/view-only` | POST | Add view-only |
+| `/api/v1/users/view-only/{wallet}` | DELETE | Remove view-only |
+| `/api/v1/users/{wallet}/display-name` | PATCH | Update display name |
 
-### User Object Shape
+### User Object
 
 ```json
 {
@@ -109,5 +84,5 @@ DELETE /api/v1/users/view-only/{wallet_address}?vault_address={}&chain_id={}
 ```
 
 <Tip>
-Add at least one secondary manager as a backup before going live. If you lose access to the primary manager key, secondary managers can continue vault operations.
+Add at least one secondary manager before going live. If you lose access to the primary key, secondary managers can continue vault operations.
 </Tip>

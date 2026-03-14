@@ -3,105 +3,80 @@ title: "Create Vault"
 description: "Multi-step vault creation flow: choose chain, asset, configure fees, sign on-chain, and poll for indexing."
 ---
 
-👤 Manager Required · ✅ Live
-
-## Overview
-
-The Create Vault flow is a full-screen modal at `/vaults/create`. It walks you through all configuration steps, builds the on-chain transaction via Erebor, and polls for vault indexing after the transaction confirms.
+The Create Vault flow (`/vaults/create`) deploys a new SuperVault on-chain. You configure chain, underlying asset, fees, and managers, then sign a single creation transaction. Erebor handles contract deployment and indexes the new vault.
 
 <Note>
-The vault creation form copy and step ordering may change as the product evolves. Screenshots are deferred — refer to the step-by-step description below.
+The vault creation form and step ordering may change as the product evolves. Screenshots are deferred.
 </Note>
 
 ## Creation Steps
 
 ### Step 1: Select Chain
 
-Choose the chain where the vault will be deployed:
-- Ethereum Mainnet (chain ID: 1)
-- Base (chain ID: 8453)
-
-The choice is permanent — vaults cannot be migrated between chains.
+Choose the deployment chain: Ethereum Mainnet (chain ID: 1) or Base (chain ID: 8453). This is permanent. Vaults cannot be migrated between chains.
 
 ### Step 2: Choose Underlying Asset
 
-Select the token depositors will supply to the vault (e.g., USDC, WETH, DAI).
+Select the token depositors will supply (USDC, WETH, DAI, etc.).
 
-- Browse registered token assets from `GET /api/v1/registry/token-assets?chain_id={}&limit=500`
-- If your token is not listed, click **Register Custom Token** to add it via `PUT /api/v1/registry/token-assets`
-
-Custom token registration is idempotent (safe to call if the token already exists).
+- Browse registered tokens from `GET /api/v1/registry/token-assets?chain_id={}&limit=500`
+- If your token is not listed, click **Register Custom Token** via `PUT /api/v1/registry/token-assets` (idempotent)
 
 ### Step 3: Set Name & Symbol
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| Vault Name | Full descriptive name | `"USDC Yield Vault"` |
-| Symbol | Ticker for vault shares | `"svUSDC"` |
-
-Symbols should be short and descriptive of the underlying strategy.
+| Vault Name | Descriptive name | `"USDC Yield Vault"` |
+| Symbol | Vault share ticker | `"svUSDC"` |
 
 ### Step 4: Configure Managers
 
-- **Primary Manager** — automatically set to your connected wallet
-- **Secondary Managers** — optionally add additional manager addresses now (can also be added later via User Management)
+Your connected wallet becomes primary manager. Optionally add secondary managers now (or later via [User Management](/ui/user-management)).
 
 ### Step 5: Configure Fees
 
 | Field | Description |
 |-------|-------------|
-| Performance Fee (bps) | Basis points on yield above the high-water mark |
-| Management Fee (bps) | Annualized basis points on TVL |
-| Fee Recipient | Address that receives the curator's portion of fees |
+| Performance Fee (bps) | Charged on yield above the high-water mark |
+| Management Fee (bps) | Annualized charge on TVL |
+| Fee Recipient | Address receiving the curator's fee share |
 
-Protocol-level constraints are fetched from `GET /api/v1/super-governor-config/{chain_id}`. The form enforces these bounds.
+Fee bounds are enforced by SuperGovernor config, fetched from `GET /api/v1/super-governor-config/{chain_id}`.
 
 ### Step 6: Redeem Timelock (Optional)
 
-Set a delay in seconds before redemption requests can be fulfilled. Leave at 0 for instant redemptions. Can be changed later via [Vault Settings](/ui/vault-settings) (primary manager only).
+Delay in seconds before redemption requests can be fulfilled. 0 = instant. Changeable later via [Vault Settings](/ui/vault-settings) (primary manager only).
 
 ### Step 7: Review SuperGovernor Config
 
-The SuperGovernor configuration is displayed for review:
-- Protocol revenue share (bps)
-- Performance fee protocol share (bps)
-- Minimum staleness interval
-- Upkeep payment requirements
-
-These constraints are protocol-level and not configurable by the curator.
+Protocol-level constraints displayed for review: revenue share (bps), performance fee protocol share (bps), minimum staleness interval, upkeep requirements. These are not curator-configurable.
 
 ### Step 8: Sign Transaction
 
-Click **Create Vault**. The flow:
+Click **Create Vault**:
 
-1. Calls `POST /api/v1/vaults/create/prepare` → receives calldata `{ to, data, value }`
-2. Presents the transaction to your wallet for signing
-3. On signature, broadcasts the transaction
-4. Calls `POST /api/v1/vaults/create/confirm` with the `tx_hash`
+1. `POST /api/v1/vaults/create/prepare` → calldata `{ to, data, value }`
+2. Wallet presents transaction for signature
+3. On broadcast, `POST /api/v1/vaults/create/confirm` with the `tx_hash`
 
 <Warning>
-A `409 Conflict` on the confirm step means a creation job already exists for this transaction hash. The vault may already be indexing — check the job status.
+`409 Conflict` on the confirm step means a creation job already exists for this transaction hash. The vault may already be indexing. Check the job status.
 </Warning>
 
 ### Step 9: Poll Job Status
 
-After confirming, Erebor creates a background indexing job. The modal polls until completion:
-
-- Polling uses exponential backoff: **3s → 6s → 12s → 24s → 30s (cap)**
-- Timeout: **3 minutes**
-- If the job completes successfully, the modal shows the new vault address and redirects to Dashboard
+Erebor creates a background indexing job. The modal polls with exponential backoff: 3s → 6s → 12s → 24s → 30s cap. Timeout: 3 minutes.
 
 ```bash
 GET /api/v1/vaults/create/jobs/{job_id}
 ```
 
-Job status values:
 | Status | Description |
 |--------|-------------|
 | `pending` | Job queued |
 | `running` | Indexing in progress |
-| `completed` | Vault indexed successfully |
-| `failed` | Indexing failed; check `error_message` |
+| `completed` | Vault indexed; redirects to Dashboard |
+| `failed` | Check `error_message` |
 
 ## API Reference
 
@@ -110,7 +85,7 @@ Job status values:
 | `/api/v1/registry/token-assets` | GET | Token list |
 | `/api/v1/registry/token-assets` | PUT | Register custom token |
 | `/api/v1/super-governor-config/{chain_id}` | GET | Protocol constraints |
-| `/api/v1/vaults/create/prepare` | POST | Get creation calldata |
+| `/api/v1/vaults/create/prepare` | POST | Creation calldata |
 | `/api/v1/vaults/create/confirm` | POST | Submit tx hash |
 | `/api/v1/vaults/create/jobs/{id}` | GET | Poll job status |
 

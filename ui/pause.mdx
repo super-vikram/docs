@@ -3,119 +3,88 @@ title: "Pause Operations"
 description: "Emergency on-chain vault pause and per-vault keeper service controls."
 ---
 
-👤 Manager Required · ✅ Live
-
 ![SuperVaults Pause Operations — emergency vault pause control and keeper service management](/images/screenshots/pause.jpg)
 
-## Overview
-
-The Pause page provides two distinct control mechanisms:
-
-1. **On-Chain Pause** — Halts vault strategy execution at the contract level. Requires wallet signature.
-2. **Keeper Service Controls** — Pauses/resumes individual Superman keeper workers per vault. No gas required.
+The Pause page provides two control mechanisms: on-chain vault pause (halts contract-level execution, requires gas) and per-vault keeper service controls (halts individual workers, no gas). Both are fully operational and wired to Erebor.
 
 <Warning>
-The Pause page (`/pause`) is distinct from the Emergency page (`/emergency`). The Pause page is **fully operational** and wired to Erebor. The Emergency page is a mock Fireblocks multi-sig flow not yet implemented.
+The Pause page (`/pause`) is distinct from the Emergency page (`/emergency`). Pause is **fully operational**. The Emergency page is a mock Fireblocks multi-sig flow not yet implemented.
 </Warning>
 
 ## Section 1: On-Chain Vault Pause
 
 ### Batch Pause Status
 
-The top of the page shows pause status for **all vaults** you manage in a single view. Each vault shows:
-- Vault name and chain
-- Current pause state (active / paused)
-- Pause timestamp and who paused it
+Shows pause status for all vaults you manage. Each vault displays name, chain, pause state, timestamp, and actor.
 
-**API:** `GET /api/v1/vaults/pause-status?vaults={chainId}:{vaultAddr},{chainId}:{vaultAddr},...`
+API: `GET /api/v1/vaults/pause-status?vaults={chainId}:{vaultAddr},{chainId}:{vaultAddr},...` (polls every 10s)
 
-Polls every 10 seconds.
+### Pausing
 
-### Emergency Pause
-
-To pause a vault's on-chain strategy execution:
-
-1. Click **Pause Vault** for the target vault
+1. Click **Pause Vault**
 2. Optionally enter a reason (stored in audit log)
-3. Erebor calls `POST /api/v1/vaults/emergency-pause/prepare` → returns calldata
-4. Sign the transaction in your wallet
-5. Vault strategy is paused on-chain
+3. Erebor calls `POST /api/v1/vaults/emergency-pause/prepare` → calldata
+4. Sign the transaction
 
-When paused:
-- Strategy Engine stops dispatching intents for this vault
-- All on-chain vault operations (deposits, redemptions) are halted
-- PPS oracle updates may be blocked (depending on contract config)
+When paused: Strategy Engine stops dispatching intents, all on-chain vault operations halt, PPS oracle updates may be blocked.
 
-### Emergency Unpause
+### Unpausing
 
-Reverse the pause:
 1. Click **Unpause Vault**
-2. Erebor calls `POST /api/v1/vaults/emergency-unpause/prepare` → returns calldata
+2. Erebor calls `POST /api/v1/vaults/emergency-unpause/prepare` → calldata
 3. Sign the transaction
-
-<Note>
-Both pause and unpause use the **prepare pattern** — Erebor constructs the calldata, your wallet signs. This keeps private keys off the server.
-</Note>
 
 ## Section 2: Keeper Service Controls
 
-Independent of the on-chain pause, you can pause/resume individual keeper workers for a specific vault.
+Independent of the on-chain pause. Control individual workers for a specific vault without gas.
 
-### View Service Controls
+### Viewing Services
 
-`GET /api/v1/vaults/{chain_id}/{vault_address}/services` returns the status of all services registered for this vault:
+`GET /api/v1/vaults/{chain_id}/{vault_address}/services` returns per-service status:
 
 | Field | Description |
 |-------|-------------|
-| `service_name` | e.g., `fulfill_deposits`, `fulfill_redeems` |
-| `is_paused` | Current pause state |
-| `paused_at` | Timestamp when paused |
-| `paused_by` | Wallet address that issued the pause |
-| `paused_reason` | Optional reason string |
-| `resumed_at` | Timestamp when resumed (if applicable) |
+| `service_name` | e.g., `fulfill_deposits` |
+| `is_paused` | Current state |
+| `paused_at` | Timestamp |
+| `paused_by` | Actor wallet |
+| `paused_reason` | Optional reason |
+| `resumed_at` | Resume timestamp |
 
-### Pausing a Single Service
+### Pausing a Service
 
 ```bash
-PUT /api/v1/vaults/{chain_id}/{vault_address}/services/{service_name}/pause
-{
-  "reason": "Reconfiguring deposit ladder"
-}
+PUT /api/v1/vaults/{chain_id}/{vault}/services/{service_name}/pause
+{ "reason": "Reconfiguring deposit ladder" }
 ```
 
-### Resuming a Single Service
+### Resuming a Service
 
 ```bash
-PUT /api/v1/vaults/{chain_id}/{vault_address}/services/{service_name}/resume
+PUT /api/v1/vaults/{chain_id}/{vault}/services/{service_name}/resume
 ```
 
-### Bulk Enable/Disable All Services
+### Bulk Enable/Disable
 
-To stop or start ALL services for a vault at once:
+Stop or start all services for a vault at once (no gas):
 
 ```bash
-PUT /api/v1/vaults/{chain_id}/{vault_address}/services/enabled
+PUT /api/v1/vaults/{chain_id}/{vault}/services/enabled
 { "enabled": false }
 ```
 
-This is useful when you want to temporarily freeze all keeper activity without an on-chain transaction (no gas).
+## Pause Controls Comparison
+
+| Control | Scope | Gas Required |
+|---------|-------|-------------|
+| On-chain pause | Contract-level, all operations | Yes |
+| Services enabled (bulk) | All keeper workers | No |
+| Vault Enabled toggle ([Ladder](/ui/ladder)) | All keeper workers | No |
+| Individual service pause | Single keeper worker | No |
 
 ## Audit Trail
 
-All pause/resume events are logged with who performed the action and when. Access the audit log via:
-
-```bash
-GET /api/v1/audit/logs?vault_address={}&chain_id={}
-```
-
-## Pause vs Vault Enabled
-
-| Control | What it stops | Gas required? | Location |
-|---------|--------------|---------------|---------|
-| On-chain pause | Contract-level, all operations | ✅ Yes | Pause page — Section 1 |
-| Services enabled (bulk) | All keeper workers for vault | ❌ No | Pause page — Section 2 |
-| Vault Enabled toggle | Same keepers, per-vault | ❌ No | [Ladder](/ui/ladder) page |
-| Individual service pause | Single keeper | ❌ No | Pause page — Section 2 |
+All pause/resume events are logged. Query via `GET /api/v1/audit/logs?vault_address={}&chain_id={}`.
 
 ## API Reference
 
