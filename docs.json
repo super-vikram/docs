@@ -31,7 +31,7 @@
             ]
           },
           {
-            "group": "Getting Started",
+            "group": "Vault Setup",
             "pages": [
               "ui/home",
               "ui/create-vault"
