@@ -17,11 +17,18 @@ Navigate to [superman.superform.xyz](https://superman.superform.xyz) and click *
 </Step>
 
 <Step title="Create a Vault">
-Click **Create Vault** (or navigate to `/vaults/create`). The form walks you through selecting a chain, underlying asset, name/symbol, managers, and fee configuration, then signs a single creation transaction. Erebor indexes the new vault in the background — typically under 3 minutes.
+Click **Create Vault** (or navigate to `/vaults/create`). The creation flow:
 
-<Card title="Create Vault — Full Reference" icon="square-plus" href="/ui/create-vault">
-  Detailed walkthrough of every form field, API endpoints, request schemas, and job polling.
-</Card>
+1. **Select Chain** — Ethereum (1) or Base (8453). Permanent.
+2. **Choose Underlying Asset** — Select from registered tokens, or register a custom token.
+3. **Set Name & Symbol** — e.g., `"USDC Yield Vault"` / `"svUSDC"`
+4. **Configure Managers** — Your wallet becomes primary manager. Add secondary managers now or later.
+5. **Configure Fees** — Performance fee (bps), management fee (bps), fee recipient address. Bounded by SuperGovernor constraints.
+6. **Redeem Timelock** (optional) — Delay in seconds before redemptions can be fulfilled. 0 = instant.
+7. **Review SuperGovernor Config** — Protocol-level constraints (min staleness, revenue share). Not curator-configurable.
+8. **Sign Transaction** — Approve the vault creation transaction.
+
+Erebor starts a background indexing job after the transaction confirms. The modal polls until completion (up to 3 minutes, exponential backoff: 3s → 6s → 12s → 24s → 30s cap).
 </Step>
 
 <Step title="Whitelist Yield Sources">
