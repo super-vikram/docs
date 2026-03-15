@@ -1,0 +1,62 @@
+---
+title: "Home: Vault Overview"
+description: "The public landing page showing all SuperVault deployments with TVL, APY, and chain filters."
+---
+
+![SuperVaults Home — vault grid with TVL, APY, and chain filters](/images/screenshots/home.jpg)
+
+The Home page lists every deployed SuperVault across all supported chains. No authentication required. Data refreshes from `GET /api/v1/public/vaults` (Erebor) with a 5-minute stale time.
+
+## Vault Grid
+
+Each vault card displays:
+
+| Field | Description |
+|-------|-------------|
+| Vault Name | Curator-defined name |
+| Underlying Asset | Token depositors supply (USDC, WETH, etc.) |
+| TVL (USD) | Total value locked |
+| APY | Current annualized yield |
+| Chain | Ethereum or Base |
+
+### Filtering and Sorting
+
+| Control | Options |
+|---------|---------|
+| Chain filter | All, Ethereum (1), Base (8453) |
+| Search | Text match by vault name |
+| Sort | TVL (default), APY, Name |
+
+## Depositor Actions
+
+Each card includes **Deposit** and **Withdraw** buttons. These trigger the depositor UX (Dynamic.xyz wallet connect if needed, then inline interaction modal). Depositor activity is observable through the Dashboard's Operations and Users sections.
+
+Clicking a vault card navigates to its [Dashboard](/ui/dashboard) at `/dashboard?chainId={id}&vaultAddress={addr}`.
+
+## API Reference
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/v1/public/vaults` | GET | None | All vault deployments with TVL/APY |
+| `/api/v1/registry/token-assets` | GET | None | Token metadata (symbol, decimals, logo) |
+
+```json
+// GET /api/v1/public/vaults — response shape
+[
+  {
+    "vault_address": "0x...",
+    "escrow_address": "0x...",
+    "chain_id": 8453,
+    "name": "USDC Yield Vault",
+    "symbol": "svUSDC",
+    "vault_share_decimals": 18,
+    "underlying_asset_symbol": "USDC",
+    "underlying_asset_decimals": 6,
+    "underlying_asset_address": "0x...",
+    "tvl_usd": 1250000.00,
+    "apy": 0.0847
+  }
+]
+```
+
+Token metadata is fetched separately via `GET /api/v1/registry/token-assets?chain_id={}&addresses={}` and cached for the session (infinite stale time).

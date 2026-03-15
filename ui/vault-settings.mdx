@@ -1,0 +1,76 @@
+---
+title: "Vault Settings"
+description: "Configure the redeem timelock — the delay enforced before redemption requests are fulfilled."
+---
+
+![SuperVaults Vault Settings — redeem timelock configuration panel](/images/screenshots/vault-settings.jpg)
+
+Vault Settings currently covers **Redeem Timelock** configuration. Primary manager only. Secondary managers receive `403 Forbidden`.
+
+## Redeem Timelock
+
+A mandatory delay (in seconds) between redemption request submission and fulfillment eligibility. When set to 0 or not configured, redemptions execute as soon as liquidity is available.
+
+**Use cases:**
+- **Fraud prevention** — time for the primary manager to intervene on suspicious redemptions
+- **Liquidity management** — keepers source liquidity from yield sources before fulfillment
+- **Regulatory compliance** — some contexts require enforced redemption delays
+
+## Setting the Timelock
+
+```bash
+PUT /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+{ "timelock_seconds": 86400 }
+```
+
+Returns:
+```json
+{
+  "vault_address": "0x...",
+  "chain_id": 8453,
+  "timelock_seconds": 86400,
+  "created_at": "2025-01-15T10:30:00Z",
+  "updated_at": "2025-03-01T12:00:00Z"
+}
+```
+
+## Removing the Timelock
+
+```bash
+DELETE /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+```
+
+## Checking Status
+
+```bash
+GET /api/v1/vaults/{chain_id}/{vault_address}/redeem-timelock
+```
+
+Returns `404 Not Found` when no timelock is configured. This is a valid "no timelock" state, not an error.
+
+## Bulk Operations
+
+Set timelocks across multiple vaults in a single request:
+
+```bash
+PUT /api/v1/redeem-timelocks/bulk
+{
+  "timelocks": [
+    { "vault_address": "0x...", "chain_id": 8453, "timelock_seconds": 86400 },
+    { "vault_address": "0x...", "chain_id": 1, "timelock_seconds": 3600 }
+  ]
+}
+```
+
+## API Reference
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | GET | Current timelock (404 = none) |
+| `PUT /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | PUT | Set/update timelock |
+| `DELETE /api/v1/vaults/{chain_id}/{vault}/redeem-timelock` | DELETE | Remove timelock |
+| `PUT /api/v1/redeem-timelocks/bulk` | PUT | Bulk set across vaults |
+
+<Warning>
+Setting a timelock on a live vault affects all future redemption requests. Requests submitted before the change are not retroactively affected.
+</Warning>

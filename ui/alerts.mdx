@@ -1,0 +1,42 @@
+---
+title: "Alerts"
+description: "Planned alert monitoring for vault health events. Currently a mock/placeholder — not yet wired to a backend."
+---
+
+<Warning>
+The Alerts page is **entirely mock**. All data shown in the UI is hardcoded placeholder content with simulated delays. No backend implementation exists. Do not build integrations against this page. The API surface will change when the real implementation ships.
+</Warning>
+
+## Planned Functionality
+
+When implemented, Alerts will provide real-time monitoring of vault health events with severity classification:
+
+| Severity | Examples |
+|----------|---------|
+| `critical` | PPS staleness exceeded, keeper service down, gas balance critically low |
+| `warning` | High redemption queue depth, service success rate below threshold |
+| `info` | Scheduled maintenance, parameter changes |
+
+### Planned Alert Lifecycle
+
+```
+active → acknowledged → resolved
+```
+
+### Planned Integrations
+
+Slack, PagerDuty, Discord, and custom HTTP webhook endpoints.
+
+## Current Workaround
+
+Until the Alerts system ships, monitor vault health using existing endpoints:
+
+1. **Audit logs** — `GET /api/v1/audit/logs` (Erebor, available now)
+2. **Service health** — `GET /services/status` (Superman, available now)
+3. **Vault state polling** — `GET /api/v1/vaults/{chain_id}/{vault_address}` every 15s for PPS staleness
+
+See the [Monitoring Automation Guide](/automation/monitoring) for production-ready Python and TypeScript polling examples.
+
+## Mock Data
+
+The current UI displays hardcoded example alerts: PPS Staleness Warning, High Redemption Queue, Low Gas Balance, Service Restart. These do not reflect actual vault state.

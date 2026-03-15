@@ -1,80 +1,128 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Create and configure a SuperVault end-to-end in approximately 15 minutes."
 ---
 
-## Get started in three steps
+This guide covers the complete vault creation and configuration flow. By the end, you will have a live SuperVault with yield sources whitelisted, a merkle root synced on-chain, a ladder configured, and keeper services running.
 
-Get your documentation site running locally and make your first customization.
+**Time required:** ~15 minutes
+**Prerequisites:** EVM wallet connected, ETH for gas, manager access granted by the Superform team
 
-### Step 1: Set up your local environment
+---
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
 
-### Step 2: Deploy your changes
+<Step title="Connect Wallet">
+Navigate to [superman.superform.xyz](https://superman.superform.xyz) and click **Connect Wallet**. Dynamic.xyz requests a signature to issue your JWT session. After connecting, the navigation shows your wallet address and vault count.
+</Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+<Step title="Create a Vault">
+Click **Create Vault** (or navigate to `/vaults/create`). The creation flow:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+1. **Select Chain** — Ethereum (1) or Base (8453). Permanent.
+2. **Choose Underlying Asset** — Select from registered tokens, or register a custom token.
+3. **Set Name & Symbol** — e.g., `"USDC Yield Vault"` / `"svUSDC"`
+4. **Configure Managers** — Your wallet becomes primary manager. Add secondary managers now or later.
+5. **Configure Fees** — Performance fee (bps), management fee (bps), fee recipient address. Bounded by SuperGovernor constraints.
+6. **Redeem Timelock** (optional) — Delay in seconds before redemptions can be fulfilled. 0 = instant.
+7. **Review SuperGovernor Config** — Protocol-level constraints (min staleness, revenue share). Not curator-configurable.
+8. **Sign Transaction** — Approve the vault creation transaction.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+Erebor starts a background indexing job after the transaction confirms. The modal polls until completion (up to 3 minutes, exponential backoff: 3s → 6s → 12s → 24s → 30s cap).
+</Step>
 
-### Step 3: Go live
+<Step title="Whitelist Yield Sources">
+Navigate to **Yield Sources** for your vault.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+1. Browse the Yield Source Registry (filtered by chain and active status)
+2. Select a yield source and its paired oracle
+3. Click **Add** — Erebor prepares calldata via `POST /api/v1/yield-sources/prepare-add`
+4. Sign the transaction
 
-## Next steps
+Use **Bulk Add** to whitelist multiple yield sources in a single transaction. Two yield source types are supported: `erc4626` (Morpho, Aave wrappers) and `pendle_pt` (Pendle Principal Tokens).
+</Step>
 
-Now that you have your docs running, explore these key features:
+<Step title="Configure Hook Authorization">
+Navigate to **Merkle Trees** for your vault.
 
-<CardGroup cols={2}>
+1. Click **Create New Config** in the Hook Configs tab
+2. Add each hook you want keepers to execute: select hook from registry, assign parameter values (yield source address, token, oracle)
+3. Click **Activate** on the new config version
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+Each hook + parameter combination becomes a merkle tree leaf. Only authorized combinations pass on-chain verification.
+</Step>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+<Step title="Generate and Sync Merkle Tree">
+Still in **Merkle Trees**:
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+1. Click **Generate Merkle Tree** — async job, polls every 2–15s
+2. After generation completes, the tree root hash is displayed
+3. Click **Sync to Chain** — Erebor determines the required action:
+   - **Propose**: submits the new root to the contract (starts timelock)
+   - **Pending**: timelock in progress (shows time remaining)
+   - **Execute**: timelock expired, sign to activate the new root
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+Keepers cannot execute against whitelisted yield sources until the merkle root is synced on-chain. This step gates all vault operations.
 </Note>
+</Step>
+
+<Step title="Configure Ladders">
+Navigate to **Ladder** for your vault.
+
+| Tab | Configuration |
+|-----|--------------|
+| **Deposit Priority** | Drag yield sources into fill order. Top = deployed first. |
+| **Redemption Priority** | Set unwind order. Configure `min_balance_to_keep` per source. |
+| **Reserve** | Percentage of TVL held liquid for instant redemptions (e.g., 5%). |
+| **Claim Rewards** | Floor thresholds per reward token. Workers claim when balance exceeds floor. |
+| **Swap** | Floor thresholds for non-underlying tokens. Workers swap above floor. |
+
+Toggle **Vault Enabled** to ON. This activates all keeper workers for the vault.
+</Step>
+
+<Step title="Verify Service Health">
+Navigate to **Services**. Confirm all 7 keeper workers show **Healthy** status with success rates above 95%.
+
+| Worker | Responsibility |
+|--------|---------------|
+| `fulfill_deposits` | Allocates free vault assets per deposit ladder |
+| `fulfill_redeems` | Fulfills pending ERC-7540 redemption requests |
+| `fulfill_claims` | Claims reward tokens from external protocols |
+| `fulfill_swaps` | Swaps non-underlying tokens to underlying asset |
+| `redemption_queue_engine` | Monitors subgraph for new redemption requests |
+| `cleanup_processed_redeems` | Reconciles on-chain vs DB redemption state |
+| `tx_manager` | Broadcasts transactions, monitors confirmations |
+
+Infrastructure health (API, Database, Redis, Celery, Subgraph, RPC) should all show **Operational**.
+</Step>
+
+<Step title="Monitor">
+Navigate to **Dashboard** and select your vault. Key metrics after launch:
+
+- **TVL** — tracks inflows as deposits arrive
+- **PPS** — should increase as yield accrues
+- **PPS staleness countdown** — verify oracle refresh is on schedule
+- **Service success rates** — any drop below 95% warrants investigation
+</Step>
+
+</Steps>
+
+---
+
+## Pre-Launch Checklist
+
+Before accepting external deposits:
+
+- [ ] All target yield sources whitelisted on-chain
+- [ ] Merkle root synced (not pending timelock)
+- [ ] Ladders configured with appropriate reserve percentage
+- [ ] At least one deposit executed successfully (verify in [History](/ui/history))
+- [ ] All 7 keeper services healthy
+- [ ] Secondary manager added for operational redundancy
+- [ ] Fee recipient address confirmed
+- [ ] PPS oracle updating on schedule
+
+<Card title="Dashboard" icon="chart-line" href="/ui/dashboard">
+  Vault analytics, allocation breakdown, and operational monitoring.
+</Card>

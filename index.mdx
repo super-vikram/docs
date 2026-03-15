@@ -1,97 +1,76 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "SuperVaults Curator Documentation"
+description: "Technical reference for SuperVault curators: vault operations, strategy automation, API integration, and risk management."
 ---
 
-## Setting up
+SuperVaults are ERC-7540 tokenized vaults that give curators full programmatic control over yield strategy execution. Curators set allocation priorities, define automated rebalancing rules, manage on-chain permissions through merkle-verified hook authorization, and monitor vault health across a 127-endpoint API surface spanning four backend services.
 
-Get your documentation site up and running in minutes.
+This documentation covers everything a curator needs to operate a SuperVault: from initial vault creation and yield source whitelisting through strategy automation via the DeFiX v0.1 intent protocol.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Architecture at a Glance
 
-## Make it yours
+SuperVaults split responsibilities across four backend services:
 
-Design a docs site that looks great and empowers your users.
+| Service | Role | Language |
+|---------|------|----------|
+| **Erebor** | Vault management, analytics, merkle authorization, registry | Go |
+| **Superman** | Keeper worker orchestration, ladder config, execution history | Python |
+| **Strategy Engine** | Rule-based strategy evaluation, intent dispatch | Go |
+| **OMS** | DeFiX v0.1 intent execution, on-chain transaction management | Go |
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+Every on-chain write operation follows a **prepare pattern**: the backend constructs EVM calldata, your wallet signs the transaction, and the backend confirms the result. Private keys never touch the server.
+
+## Key Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Strategy Automation" icon="robot" href="/ui/strategy">
+    Define rule-based strategies with indicator expressions, conviction thresholds, and configurable tick intervals. The Strategy Engine evaluates conditions and dispatches DeFiX intents automatically.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Merkle Authorization" icon="shield-halved" href="/ui/merkle-trees">
+    Whitelist exactly which hooks can be called with which parameters. Each authorized combination becomes a merkle tree leaf verified on-chain before execution.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Ladder Configuration" icon="list-ol" href="/ui/ladder">
+    Set deposit priority, redemption priority, reserve ratios, reward claim thresholds, and swap floors. Seven Celery workers execute against your ladder config continuously.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Full API Access" icon="code" href="/api/overview">
+    127 endpoints across four services. Programmatic control over every operation the UI exposes, plus analytics, audit logs, and admin utilities.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Documentation Structure
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Understand the Curator Role">
+    What curators control, what the protocol enforces, and the security boundaries between them. [Read more →](/curator-role)
+  </Step>
+  <Step title="Core Concepts">
+    ERC-7540 mechanics, the hook system, merkle authorization, and the DeFiX intent protocol. [Read more →](/concepts)
+  </Step>
+  <Step title="Get Started">
+    Prerequisites, authentication, permissions, and a quickstart walkthrough. [Read more →](/prerequisites)
+  </Step>
+  <Step title="Operate">
+    UI guide for every page in the Curator App, from Dashboard to Strategy Canvas. [Read more →](/ui/home)
+  </Step>
+  <Step title="Integrate">
+    API reference for all four backends with endpoint tables, request shapes, and error codes. [Read more →](/api/overview)
+  </Step>
+  <Step title="Automate">
+    Build programmatic curators: monitoring loops, ladder automation, service health alerting, and audit log streaming. [Read more →](/automation/overview)
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Security Model
 
-## Need inspiration?
+SuperVaults enforce security at multiple layers:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **On-chain merkle verification** ensures keepers can only execute pre-authorized hook + parameter combinations
+- **ERC-7540 async redemption** separates request from fulfillment, giving curators time to source liquidity
+- **Timelocked merkle root updates** prevent instant unauthorized changes to keeper permissions
+- **Role-based access control** across primary manager, secondary manager, and view-only tiers
+- **Emergency pause** halts all vault operations with a single on-chain transaction
+- **Audited contracts** reviewed by Spearbit, Cantina, and yAudit across multiple engagements
+
+<Note>
+This documentation targets curators and integrators. For depositor-facing information, see the [Superform App](https://app.superform.xyz). For protocol-level specifications, see the [Superform Docs](https://docs.superform.xyz).
+</Note>

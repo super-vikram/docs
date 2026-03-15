@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "SuperVaults Curator Docs",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#6B46C1",
+    "light": "#9F7AEA",
+    "dark": "#553C9A"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -14,55 +14,90 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Introduction",
             "pages": [
               "index",
-              "quickstart",
-              "development"
+              "curator-role",
+              "concepts"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Getting Started",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "prerequisites",
+              "authentication",
+              "permissions",
+              "quickstart"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Getting Started",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "ui/home",
+              "ui/create-vault"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Vault Operations",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "ui/dashboard",
+              "ui/ladder",
+              "ui/strategy",
+              "ui/history",
+              "ui/services"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "ui/yield-sources",
+              "ui/merkle-trees",
+              "ui/vault-settings",
+              "ui/user-management"
+            ]
+          },
+          {
+            "group": "Registry & Admin",
+            "pages": [
+              "ui/registry",
+              "ui/admin"
+            ]
+          },
+          {
+            "group": "Emergency & Alerts",
+            "pages": [
+              "ui/pause",
+              "ui/alerts"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "API Reference",
             "pages": [
-              "api-reference/introduction"
+              "api/overview",
+              "api/erebor",
+              "api/superman",
+              "api/strategy",
+              "api/oms"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Automation",
+        "groups": [
           {
-            "group": "Endpoint examples",
+            "group": "Automation Guide",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "automation/overview",
+              "automation/monitoring",
+              "automation/ladders",
+              "automation/services",
+              "automation/webhooks"
             ]
           }
         ]
@@ -71,14 +106,14 @@
     "global": {
       "anchors": [
         {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
+          "anchor": "API Reference",
+          "href": "https://superman.mintlify.app/api/overview",
+          "icon": "code"
         },
         {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
+          "anchor": "GitHub",
+          "href": "https://github.com/superform-xyz",
+          "icon": "github"
         }
       ]
     }
@@ -90,33 +125,20 @@
   "navbar": {
     "links": [
       {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
+        "label": "superform.xyz",
+        "href": "https://superform.xyz"
       }
     ],
     "primary": {
       "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "label": "Launch App",
+      "href": "https://superman.superform.xyz"
     }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "x": "https://twitter.com/superform",
+      "github": "https://github.com/superform-xyz"
     }
   }
 }
